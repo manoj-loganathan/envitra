@@ -1,0 +1,269 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *, [data-theme=dark], [data-theme=dark] *));
+
+@theme {
+  --color-purple-50: #f0f3ff;
+  --color-purple-100: #d0d7fa;
+  --color-purple-200: #a2b0f3;
+  --color-purple-300: #7c90ed;
+  --color-purple-400: #5a73e8;
+  --color-purple-500: #3f5ce6;
+  --color-purple-600: #3050d8;
+  --color-purple-700: #253fa3;
+  --color-purple-800: #1e3385;
+  --color-purple-900: #152461;
+  --color-purple-950: #0d153d;
+
+  --background-image-gradient-primary: linear-gradient(135deg, #3050d8 0%, #5a73e8 50%, #7c90ed 100%);
+  --background-image-gradient-primary-hover: linear-gradient(135deg, #253fa3 0%, #3f5ce6 50%, #5a73e8 100%);
+  --background-image-gradient-text: linear-gradient(135deg, #5a73e8 0%, #7c90ed 60%, #a2b0f3 100%);
+  --background-image-gradient-hero-dark: linear-gradient(135deg, #09090B 0%, #0d153d 50%, #09090B 100%);
+  --background-image-gradient-hero-light: linear-gradient(135deg, #FAFAF9 0%, #f0f3ff 50%, #FAFAF9 100%);
+  --background-image-gradient-card: linear-gradient(135deg, rgba(48, 80, 216, 0.08) 0%, rgba(90, 115, 232, 0.03) 100%);
+  --background-image-gradient-border-purple: linear-gradient(135deg, #3050d8, #7c90ed, #3050d8);
+
+  --font-sans: var(--font-sans), system-ui, sans-serif;
+
+  --radius-card: 12px;
+  --radius-btn: 8px;
+  --radius-pill: 9999px;
+
+  --shadow-purple-sm: 0 4px 14px rgba(48, 80, 216, 0.20);
+  --shadow-purple-md: 0 8px 32px rgba(48, 80, 216, 0.25), 0 2px 8px rgba(48, 80, 216, 0.15);
+  --shadow-purple-lg: 0 20px 60px rgba(48, 80, 216, 0.35), 0 4px 16px rgba(48, 80, 216, 0.20);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+html {
+  font-size: 100%;
+}
+
+:root {
+  /* Backgrounds */
+  --bg-page: #FAFAF9;
+  /* page background */
+  --bg-surface: #FFFFFF;
+  /* cards, panels */
+  --bg-muted: #F4F4F2;
+  /* subtle section tint */
+  --bg-purple-tint: #f0f3ff;
+  /* light purple surface */
+
+  /* Text */
+  --text-primary: #0A0A0A;
+  --text-secondary: #4B4B4B;
+  --text-muted: #8A8A8A;
+  --text-on-gradient: #FFFFFF;
+
+  /* Borders */
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --border-purple: rgba(48, 80, 216, 0.25);
+
+  /* Semantic */
+  --success: #16A34A;
+  --warning: #D97706;
+  --error: #DC2626;
+  --info: #2563EB;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.10), 0 4px 12px rgba(0, 0, 0, 0.05);
+  --shadow-purple: 0 8px 32px rgba(48, 80, 216, 0.25), 0 2px 8px rgba(48, 80, 216, 0.15);
+
+  /* Shop Card Mockup — Light theme: dark blue gradient */
+  --shop-card-bg: linear-gradient(135deg, #0d153d 0%, #3050d8 50%, #5a73e8 100%);
+  --shop-card-shadow: 0 20px 40px rgba(48, 80, 216, 0.25), inset 0 0 20px rgba(255, 255, 255, 0.2);
+  --shop-card-text: #FFFFFF;
+  --shop-card-text-muted: rgba(255, 255, 255, 0.70);
+  --shop-card-text-sub: rgba(255, 255, 255, 0.80);
+  --shop-card-icon: rgba(255, 255, 255, 0.80);
+
+  /* NFC Card Layout Spacing Variables */
+  --card-w: 8.5rem;
+  --card-h: 5.1rem;
+  --card-x1: 7.2rem;
+  --card-x2: 3.8rem;
+  --card-z1: 1.5rem;
+  --card-z2: 0.75rem;
+
+  --background: #FAFAF9;
+  --foreground: #0A0A0A;
+  --card: #FFFFFF;
+  --card-foreground: #0A0A0A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0A0A0A;
+  --primary: #3050d8;
+  --primary-foreground: #ffffff;
+  --secondary: #F4F4F5;
+  --secondary-foreground: #18181B;
+  --muted: #F4F4F5;
+  --muted-foreground: #71717A;
+  --accent: #F4F4F5;
+  --accent-foreground: #18181B;
+  --destructive: #EF4444;
+  --destructive-foreground: #ffffff;
+  --input: #e4e4e7;
+  --ring: #3050d8;
+
+  --sidebar: #FAFAF9;
+  --sidebar-foreground: #0A0A0B;
+  --sidebar-primary: #3050d8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #F4F4F5;
+  --sidebar-accent-foreground: #0A0A0B;
+  --sidebar-border: #e4e4e7;
+  --sidebar-ring: #3050d8;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --card-w: 14.5rem;
+    --card-h: 8.7rem;
+    --card-x1: 13.5rem;
+    --card-x2: 7.2rem;
+    --card-z1: 3rem;
+    --card-z2: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --card-w: 21.25rem;
+    --card-h: 12.75rem;
+    --card-x1: 20.625rem;
+    --card-x2: 10.9375rem;
+    --card-z1: 5rem;
+    --card-z2: 2.5rem;
+  }
+}
+
+[data-theme="dark"] {
+  /* Backgrounds */
+  --bg-page: #09090B;
+  /* near-black page */
+  --bg-surface: #111113;
+  /* card surface */
+  --bg-muted: #18181B;
+  /* subtle section */
+  --bg-purple-tint: #0d153d;
+  /* dark purple surface */
+
+  /* Text */
+  --text-primary: #FAFAFA;
+  --text-secondary: #A1A1AA;
+  --text-muted: #71717A;
+  --text-on-gradient: #FFFFFF;
+
+  /* Borders */
+  --border: #27272a;
+  --border-strong: #3f3f46;
+  --border-purple: rgba(90, 115, 232, 0.30);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.6);
+  --shadow-purple: 0 8px 32px rgba(48, 80, 216, 0.40), 0 2px 8px rgba(90, 115, 232, 0.20);
+
+  /* Shop Card Mockup — Dark theme: white/light premium gradient */
+  --shop-card-bg: linear-gradient(135deg, #FFFFFF 0%, #f0f3ff 40%, #e8eeff 100%);
+  --shop-card-shadow: 0 20px 40px rgba(48, 80, 216, 0.15), inset 0 0 24px rgba(48, 80, 216, 0.08);
+  --shop-card-text: #0A0A0A;
+  --shop-card-text-muted: rgba(10, 10, 10, 0.55);
+  --shop-card-text-sub: rgba(10, 10, 10, 0.70);
+  --shop-card-icon: rgba(48, 80, 216, 0.70);
+
+  --background: #09090B;
+  --foreground: #FAFAFA;
+  --card: #111113;
+  --card-foreground: #FAFAFA;
+  --popover: #111113;
+  --popover-foreground: #FAFAFA;
+  --primary: #3f5ce6;
+  --primary-foreground: #ffffff;
+  --secondary: #18181B;
+  --secondary-foreground: #FAFAFA;
+  --muted: #18181B;
+  --muted-foreground: #71717A;
+  --accent: #18181B;
+  --accent-foreground: #FAFAFA;
+  --destructive: #EF4444;
+  --destructive-foreground: #ffffff;
+  --input: #27272a;
+  --ring: #3f5ce6;
+
+  --sidebar: #09090B;
+  --sidebar-foreground: #FAFAFA;
+  --sidebar-primary: #3f5ce6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #18181B;
+  --sidebar-accent-foreground: #FAFAFA;
+  --sidebar-border: #27272a;
+  --sidebar-ring: #3f5ce6;
+}
+
+body {
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  transition: background-color 0.2s ease, color 0.2s ease;
+  margin: 0;
+  padding: 0;
+}
+
+.font-outfit {
+  font-family: var(--font-sans), sans-serif;
+}
+
+.font-poppins {
+  font-family: var(--font-poppins), sans-serif;
+}
+
+/* ── Shimmer skeleton animation ──────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 25%,
+    color-mix(in srgb, var(--muted) 60%, var(--background)) 50%,
+    var(--muted) 75%
+  );
+  background-size: 1200px 100%;
+  animation: shimmer 1.6s infinite linear;
+  border-radius: 6px;
+}

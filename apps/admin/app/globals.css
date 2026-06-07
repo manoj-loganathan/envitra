@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+@theme {
+  --color-purple-50: #F5F3FF;
+  --color-purple-100: #EDE9FE;
+  --color-purple-200: #DDD6FE;
+  --color-purple-300: #C084FC;
+  --color-purple-400: #A855F7;
+  --color-purple-500: #8B5CF6;
+  --color-purple-600: #7C3AED;
+  --color-purple-700: #6D28D9;
+  --color-purple-800: #4C1D95;
+  --color-purple-900: #2E0A6B;
+  --color-purple-950: #1E0547;
+
+  --background-image-gradient-primary: linear-gradient(135deg, #7C3AED 0%, #A855F7 50%, #C084FC 100%);
+  --background-image-gradient-primary-hover: linear-gradient(135deg, #6D28D9 0%, #9333EA 50%, #A855F7 100%);
+  --background-image-gradient-text: linear-gradient(135deg, #A855F7 0%, #C084FC 60%, #E879F9 100%);
+  --background-image-gradient-hero-dark: linear-gradient(135deg, #09090B 0%, #1A0A2E 50%, #09090B 100%);
+  --background-image-gradient-hero-light: linear-gradient(135deg, #FAFAF9 0%, #F5F3FF 50%, #FAFAF9 100%);
+  --background-image-gradient-card: linear-gradient(135deg, rgba(124, 58, 237, 0.08) 0%, rgba(168, 85, 247, 0.03) 100%);
+  --background-image-gradient-border-purple: linear-gradient(135deg, #7C3AED, #C084FC, #7C3AED);
+
+  --font-sans: var(--font-sans), system-ui, sans-serif;
+
+  --radius-card: 12px;
+  --radius-btn: 8px;
+  --radius-pill: 9999px;
+
+  --shadow-purple-sm: 0 4px 14px rgba(124, 58, 237, 0.20);
+  --shadow-purple-md: 0 8px 32px rgba(124, 58, 237, 0.25), 0 2px 8px rgba(124, 58, 237, 0.15);
+  --shadow-purple-lg: 0 20px 60px rgba(124, 58, 237, 0.35), 0 4px 16px rgba(124, 58, 237, 0.20);
+}
+
+html {
+  font-size: 100%;
+}
+
+:root {
+  /* Backgrounds */
+  --bg-page: #FAFAF9;
+  /* page background */
+  --bg-surface: #FFFFFF;
+  /* cards, panels */
+  --bg-muted: #F4F4F2;
+  /* subtle section tint */
+  --bg-purple-tint: #F5F3FF;
+  /* light purple surface */
+
+  /* Text */
+  --text-primary: #0A0A0A;
+  --text-secondary: #4B4B4B;
+  --text-muted: #8A8A8A;
+  --text-on-gradient: #FFFFFF;
+
+  /* Borders */
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.16);
+  --border-purple: rgba(124, 58, 237, 0.25);
+
+  /* Semantic */
+  --success: #16A34A;
+  --warning: #D97706;
+  --error: #DC2626;
+  --info: #2563EB;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.10), 0 4px 12px rgba(0, 0, 0, 0.05);
+  --shadow-purple: 0 8px 32px rgba(124, 58, 237, 0.25), 0 2px 8px rgba(124, 58, 237, 0.15);
+}
+
+[data-theme="dark"] {
+  /* Backgrounds */
+  --bg-page: #09090B;
+  /* near-black page */
+  --bg-surface: #111113;
+  /* card surface */
+  --bg-muted: #18181B;
+  /* subtle section */
+  --bg-purple-tint: #1A0A2E;
+  /* dark purple surface */
+
+  /* Text */
+  --text-primary: #FAFAFA;
+  --text-secondary: #A1A1AA;
+  --text-muted: #71717A;
+  --text-on-gradient: #FFFFFF;
+
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --border-purple: rgba(168, 85, 247, 0.30);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 20px 40px rgba(0, 0, 0, 0.6);
+  --shadow-purple: 0 8px 32px rgba(124, 58, 237, 0.40), 0 2px 8px rgba(168, 85, 247, 0.20);
+}
+
+body {
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  transition: background-color 0.2s ease, color 0.2s ease;
+  margin: 0;
+  padding: 0;
+}
