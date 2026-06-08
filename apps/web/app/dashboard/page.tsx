@@ -12,7 +12,8 @@ import {
   LayoutDashboard, Users, Menu, X, Search, FileDown,
   ArrowRight, ChevronLeft, ChevronRight, Magnet, BarChart3,
   Lock, Link2, Package, Contact, Loader2, Clock, Zap,
-  UserCheck, Cpu, Calendar, QrCode, Camera, Upload
+  UserCheck, Cpu, Calendar, QrCode, Camera, Upload,
+  Phone, Mail, MapPin, Globe
 } from 'lucide-react'
 
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar'
@@ -520,6 +521,23 @@ function UserDashboardContent() {
         setCardProfiles(currentProfiles)
         const live = currentProfiles.find((p: any) => p.is_active) || currentProfiles[0] || null
         setActiveProfile(live)
+
+        // Fetch vCard details for all card profiles to show "Save Contact" or "Add vCard Details"
+        if (currentProfiles.length > 0) {
+          const profileIds = currentProfiles.map((p: any) => p.id)
+          const { data: vcards } = await supabase
+            .from('vcard_details')
+            .select('*')
+            .in('profile_id', profileIds)
+
+          if (vcards) {
+            const map: Record<string, any> = {}
+            vcards.forEach((vc: any) => {
+              map[vc.profile_id] = vc
+            })
+            setVcardDataMap(map)
+          }
+        }
       }
     } catch (err) {
       console.error('Failed to fetch card profiles:', err)
@@ -532,6 +550,7 @@ function UserDashboardContent() {
     lastName: '',
     organization: '',
     jobTitle: '',
+    department: '',
     website: '',
     phones: [] as Array<{ label: string; number: string; is_primary: boolean }>,
     emails: [] as Array<{ label: string; email: string; is_primary: boolean }>,
@@ -540,10 +559,14 @@ function UserDashboardContent() {
     state: '',
     postalCode: '',
     country: 'India',
+    urls: [] as Array<{ label: string; url: string }>,
+    socials: [] as Array<{ platform: string; username: string; url: string }>,
+    notes: '',
     customFields: [] as Array<{ key: string; value: string }>,
   })
   const [savingVCard, setSavingVCard] = useState(false)
   const [loadingVCard, setLoadingVCard] = useState(false)
+  const [vcardDataMap, setVcardDataMap] = useState<Record<string, any>>({})
 
   // Fetch vCard details when active card or active profile changes
   useEffect(() => {
@@ -571,6 +594,7 @@ function UserDashboardContent() {
             lastName: '',
             organization: '',
             jobTitle: '',
+            department: '',
             website: '',
             phones: [],
             emails: [],
@@ -579,6 +603,9 @@ function UserDashboardContent() {
             state: '',
             postalCode: '',
             country: 'India',
+            urls: [],
+            socials: [],
+            notes: '',
             customFields: [],
           })
           return
@@ -596,6 +623,7 @@ function UserDashboardContent() {
             lastName: vcardData.last_name || '',
             organization: vcardData.organization || '',
             jobTitle: vcardData.job_title || '',
+            department: vcardData.department || '',
             website: vcardData.website || '',
             phones: vcardData.phones || [],
             emails: vcardData.emails || [],
@@ -604,6 +632,9 @@ function UserDashboardContent() {
             state: vcardData.state || '',
             postalCode: vcardData.postal_code || '',
             country: vcardData.country || 'India',
+            urls: vcardData.urls || [],
+            socials: vcardData.socials || [],
+            notes: vcardData.notes || '',
             customFields: vcardData.custom_fields || [],
           })
         } else {
@@ -612,6 +643,7 @@ function UserDashboardContent() {
             lastName: '',
             organization: '',
             jobTitle: '',
+            department: '',
             website: '',
             phones: [],
             emails: [],
@@ -620,6 +652,9 @@ function UserDashboardContent() {
             state: '',
             postalCode: '',
             country: 'India',
+            urls: [],
+            socials: [],
+            notes: '',
             customFields: [],
           })
         }
@@ -696,6 +731,68 @@ function UserDashboardContent() {
     }))
   }
 
+  const handleAddUrl = () => {
+    setVcardForm(prev => ({
+      ...prev,
+      urls: [...prev.urls, { label: 'Website', url: '' }]
+    }))
+  }
+
+  const handleRemoveUrl = (index: number) => {
+    setVcardForm(prev => ({
+      ...prev,
+      urls: prev.urls.filter((_, i) => i !== index)
+    }))
+  }
+
+  const handleUrlChange = (index: number, field: string, value: string) => {
+    setVcardForm(prev => ({
+      ...prev,
+      urls: prev.urls.map((u, i) => i === index ? { ...u, [field]: value } : u)
+    }))
+  }
+
+  const handleAddSocial = () => {
+    setVcardForm(prev => ({
+      ...prev,
+      socials: [...prev.socials, { platform: 'LinkedIn', username: '', url: '' }]
+    }))
+  }
+
+  const handleRemoveSocial = (index: number) => {
+    setVcardForm(prev => ({
+      ...prev,
+      socials: prev.socials.filter((_, i) => i !== index)
+    }))
+  }
+
+  const handleSocialChange = (index: number, field: string, value: string) => {
+    setVcardForm(prev => ({
+      ...prev,
+      socials: prev.socials.map((s, i) => {
+        if (i === index) {
+          const updated = { ...s, [field]: value }
+          // Automatically construct url if username changes based on platform
+          if (field === 'username' || field === 'platform') {
+            const platform = field === 'platform' ? value : s.platform
+            const username = field === 'username' ? value : s.username
+            if (username) {
+              if (platform === 'LinkedIn') updated.url = `https://linkedin.com/in/${username}`
+              else if (platform === 'Instagram') updated.url = `https://instagram.com/${username}`
+              else if (platform === 'Twitter' || platform === 'X') updated.url = `https://x.com/${username}`
+              else if (platform === 'Facebook') updated.url = `https://facebook.com/${username}`
+              else if (platform === 'YouTube') updated.url = `https://youtube.com/@${username}`
+              else if (platform === 'TikTok') updated.url = `https://tiktok.com/@${username}`
+              else if (platform === 'WhatsApp') updated.url = `https://wa.me/${username.replace(/[^\d+]/g, '')}`
+            }
+          }
+          return updated
+        }
+        return s
+      })
+    }))
+  }
+
   const saveVCard = async (vcardData: typeof vcardForm) => {
     setSavingVCard(true)
     setMessage(null)
@@ -718,6 +815,7 @@ function UserDashboardContent() {
             last_name: vcardData.lastName,
             organization: vcardData.organization,
             job_title: vcardData.jobTitle,
+            department: vcardData.department,
             website: vcardData.website,
             phones: vcardData.phones,
             emails: vcardData.emails,
@@ -726,13 +824,41 @@ function UserDashboardContent() {
             state: vcardData.state,
             postal_code: vcardData.postalCode,
             country: vcardData.country,
+            urls: vcardData.urls,
+            socials: vcardData.socials,
+            notes: vcardData.notes,
             custom_fields: vcardData.customFields,
           }, {
             onConflict: 'profile_id'
           })
 
-        if (error) throw error
       }
+
+      // Update local vcardDataMap
+      const updatedMap = { ...vcardDataMap }
+      for (const prof of profiles) {
+        updatedMap[prof.id] = {
+          profile_id: prof.id,
+          first_name: vcardData.firstName,
+          last_name: vcardData.lastName,
+          organization: vcardData.organization,
+          job_title: vcardData.jobTitle,
+          department: vcardData.department,
+          website: vcardData.website,
+          phones: vcardData.phones,
+          emails: vcardData.emails,
+          street: vcardData.street,
+          city: vcardData.city,
+          state: vcardData.state,
+          postal_code: vcardData.postalCode,
+          country: vcardData.country,
+          urls: vcardData.urls,
+          socials: vcardData.socials,
+          notes: vcardData.notes,
+          custom_fields: vcardData.customFields
+        }
+      }
+      setVcardDataMap(updatedMap)
 
       setMessage({ type: 'success', text: 'vCard details updated for all profiles.' })
     } catch (err: any) {
@@ -1031,6 +1157,19 @@ function UserDashboardContent() {
         // Create default empty vcard_details row for this profile
         if (data) {
           await supabase.from('vcard_details').insert({ profile_id: data.id })
+
+          // Add empty vcard to local map if new profile
+          setVcardDataMap(prev => ({
+            ...prev,
+            [data.id]: {
+              profile_id: data.id,
+              first_name: '',
+              last_name: '',
+              phones: [],
+              emails: [],
+              custom_fields: []
+            }
+          }))
         }
         setMessage({ type: 'success', text: 'New profile created successfully!' })
       }
@@ -1110,6 +1249,117 @@ function UserDashboardContent() {
     }
   }
 
+  // Set Profile Primary (Quick action)
+  const handleSetProfilePrimary = async (profileId: string) => {
+    if (!activeCard || isAllCards) return
+    setMessage(null)
+    try {
+      const { error } = await supabase
+        .from('card_profiles')
+        .update({ primary_profile: true })
+        .eq('id', profileId)
+
+      if (error) throw error
+
+      // Re-fetch profiles to sync local state (triggers the DB trigger which toggles others primary_profile to false)
+      const { data: updatedList } = await supabase
+        .from('card_profiles')
+        .select('*')
+        .eq('card_id', activeCard.id)
+        .order('sort_order', { ascending: true })
+
+      if (updatedList) {
+        setCardProfiles(updatedList)
+        const live = updatedList.find((p: any) => p.is_active) || updatedList[0] || null
+        setActiveProfile(live)
+      }
+      setMessage({ type: 'success', text: 'Primary profile set successfully!' })
+    } catch (err: any) {
+      console.error(err)
+      setMessage({ type: 'error', text: err.message || 'Failed to set primary profile.' })
+    }
+  }
+
+  // Generate & Download vCard (.vcf)
+  const handleDownloadVCard = (vc: any, p: any) => {
+    if (!vc) return
+    const firstName = vc.first_name || ''
+    const lastName = vc.last_name || ''
+    const fullName = `${firstName} ${lastName}`.trim() || p.display_name || p.profile_name
+
+    const orgValue = vc.organization || vc.department
+      ? `ORG:${vc.organization || ''}${vc.department ? `;${vc.department}` : ''}`
+      : ''
+
+    const vcardLines = [
+      'BEGIN:VCARD',
+      'VERSION:3.0',
+      `N:${lastName};${firstName};;;`,
+      `FN:${fullName}`,
+      orgValue,
+      vc.job_title ? `TITLE:${vc.job_title}` : '',
+      vc.website ? `URL;TYPE=WORK:${vc.website}` : '',
+      vc.notes ? `NOTE:${vc.notes.replace(/\n/g, '\\n')}` : '',
+    ]
+
+    if (vc.phones && vc.phones.length > 0) {
+      vc.phones.forEach((phone: any) => {
+        if (phone.number) {
+          vcardLines.push(`TEL;TYPE=${(phone.label || 'CELL').toUpperCase()}:${phone.number}`)
+        }
+      })
+    }
+
+    if (vc.emails && vc.emails.length > 0) {
+      vc.emails.forEach((email: any) => {
+        if (email.email) {
+          vcardLines.push(`EMAIL;TYPE=${(email.label || 'WORK').toUpperCase()}:${email.email}`)
+        }
+      })
+    }
+
+    if (vc.street || vc.city || vc.state || vc.postal_code) {
+      vcardLines.push(`ADR;TYPE=WORK:;;${vc.street || ''};${vc.city || ''};${vc.state || ''};${vc.postal_code || ''};${vc.country || 'India'}`)
+    }
+
+    if (vc.urls && vc.urls.length > 0) {
+      vc.urls.forEach((u: any) => {
+        if (u.url) {
+          vcardLines.push(`URL;TYPE=${(u.label || 'CUSTOM').toUpperCase()}:${u.url}`)
+        }
+      })
+    }
+
+    if (vc.socials && vc.socials.length > 0) {
+      vc.socials.forEach((s: any) => {
+        if (s.url) {
+          vcardLines.push(`X-SOCIALPROFILE;TYPE=${(s.platform || 'OTHER').toUpperCase()}:${s.url}`)
+        }
+      })
+    }
+
+    if (vc.custom_fields && vc.custom_fields.length > 0) {
+      vc.custom_fields.forEach((field: any) => {
+        if (field.key && field.value) {
+          vcardLines.push(`X-${field.key.replace(/\s+/g, '-').toUpperCase()}:${field.value}`)
+        }
+      })
+    }
+
+    vcardLines.push('END:VCARD')
+    const vcardString = vcardLines.filter(Boolean).join('\n')
+
+    const blob = new Blob([vcardString], { type: 'text/vcard;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${fullName.replace(/\s+/g, '_')}_contact.vcf`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   // Delete Profile
   const handleDeleteProfile = async (p: any) => {
     if (!activeCard || isAllCards) return
@@ -1171,6 +1421,13 @@ function UserDashboardContent() {
         setCardProfiles(currentList)
         const live = currentList.find((x: any) => x.is_active) || currentList[0] || null
         setActiveProfile(live)
+
+        // Remove from local vcardDataMap
+        setVcardDataMap(prev => {
+          const updated = { ...prev }
+          delete updated[p.id]
+          return updated
+        })
       }
     } catch (err: any) {
       console.error(err)
@@ -1383,8 +1640,8 @@ function UserDashboardContent() {
                   <DropdownMenuItem
                     onClick={() => handleSelectCard(ALL_CARDS_WORKSPACE)}
                     className={`w-full text-left px-3 py-2 rounded-md text-xs font-semibold flex items-center justify-between transition-all cursor-pointer ${isAllCards
-                        ? 'bg-[#3f5ce6]/10 text-[#3f5ce6] focus:bg-[#3f5ce6]/10 focus:text-[#3f5ce6] border border-[#3f5ce6]/20'
-                        : 'hover:bg-accent focus:bg-accent text-muted-foreground border border-transparent'
+                      ? 'bg-[#3f5ce6]/10 text-[#3f5ce6] focus:bg-[#3f5ce6]/10 focus:text-[#3f5ce6] border border-[#3f5ce6]/20'
+                      : 'hover:bg-accent focus:bg-accent text-muted-foreground border border-transparent'
                       }`}
                   >
                     <div className="flex items-center gap-2 truncate">
@@ -1405,8 +1662,8 @@ function UserDashboardContent() {
                       key={c.id}
                       onClick={() => handleSelectCard(c)}
                       className={`w-full text-left px-3 py-2 rounded-md text-xs font-semibold flex items-center justify-between transition-all cursor-pointer ${activeCard?.id === c.id
-                          ? 'bg-[#3f5ce6]/10 text-[#3f5ce6] focus:bg-[#3f5ce6]/10 focus:text-[#3f5ce6] border border-[#3f5ce6]/20'
-                          : 'hover:bg-accent focus:bg-accent text-muted-foreground border border-transparent'
+                        ? 'bg-[#3f5ce6]/10 text-[#3f5ce6] focus:bg-[#3f5ce6]/10 focus:text-[#3f5ce6] border border-[#3f5ce6]/20'
+                        : 'hover:bg-accent focus:bg-accent text-muted-foreground border border-transparent'
                         }`}
                     >
                       <div className="flex items-center gap-2 truncate">
@@ -1486,8 +1743,8 @@ function UserDashboardContent() {
                         key={p.id}
                         onClick={() => setActiveProfile(p)}
                         className={`px-3 py-2 rounded-md text-xs cursor-pointer flex items-center gap-2 ${activeProfile?.id === p.id
-                            ? 'bg-[#3f5ce6]/10 text-[#3f5ce6]'
-                            : 'text-foreground hover:bg-accent'
+                          ? 'bg-[#3f5ce6]/10 text-[#3f5ce6]'
+                          : 'text-foreground hover:bg-accent'
                           }`}
                       >
                         <div className="w-5 h-5 rounded-full bg-[#3f5ce6]/10 flex items-center justify-center text-[8px] font-bold text-[#3f5ce6] shrink-0">
@@ -1515,8 +1772,8 @@ function UserDashboardContent() {
             {/* Feedback message banner */}
             {message && (
               <div className={`p-3.5 px-4 rounded-xl text-xs font-semibold flex items-center justify-between gap-3 border animate-fadeIn shadow-sm select-none ${message.type === 'success'
-                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                  : 'bg-red-500/10 border-red-500/20 text-red-400'
+                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                : 'bg-red-500/10 border-red-500/20 text-red-400'
                 }`}>
                 <div className="flex items-center gap-2">
                   <AlertCircle size={14} className="shrink-0" />
@@ -1668,8 +1925,8 @@ function UserDashboardContent() {
                               <div className="flex items-center justify-between">
                                 <span className="font-mono text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{c.slug}</span>
                                 <span className={`text-[8px] uppercase px-1.5 py-0.2 rounded-full font-bold tracking-wider ${c.status === 'active'
-                                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                    : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                  : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                                   }`}>
                                   {c.status}
                                 </span>
@@ -1954,9 +2211,9 @@ function UserDashboardContent() {
                                 <h3
                                   style={itemTitleColor ? { color: itemTitleColor } : undefined}
                                   className={`${itemTitleFont === 'font-display' ? 'font-sans font-extrabold uppercase tracking-wider' : itemTitleFont} ${itemTitleSize === 'text-sm' ? 'text-[10px] sm:text-[11px]' :
-                                      itemTitleSize === 'text-base' ? 'text-[11px] sm:text-xs' :
-                                        itemTitleSize === 'text-lg' ? 'text-xs sm:text-sm' :
-                                          'text-sm sm:text-base'
+                                    itemTitleSize === 'text-base' ? 'text-[11px] sm:text-xs' :
+                                      itemTitleSize === 'text-lg' ? 'text-xs sm:text-sm' :
+                                        'text-sm sm:text-base'
                                     } font-black tracking-wide leading-tight truncate ${!itemTitleColor ? cardTextColor : ''}`}
                                 >
                                   {itemTitle}
@@ -1964,9 +2221,9 @@ function UserDashboardContent() {
                                 <p
                                   style={itemTaglineColor ? { color: itemTaglineColor } : undefined}
                                   className={`${itemTaglineFont === 'font-display' ? 'font-sans font-extrabold uppercase tracking-wider' : itemTaglineFont} ${itemTaglineSize === 'text-[10px]' ? 'text-[7px] sm:text-[8px]' :
-                                      itemTaglineSize === 'text-xs' ? 'text-[8px] sm:text-[9px]' :
-                                        itemTaglineSize === 'text-sm' ? 'text-[9px] sm:text-xs' :
-                                          'text-xs sm:text-sm'
+                                    itemTaglineSize === 'text-xs' ? 'text-[8px] sm:text-[9px]' :
+                                      itemTaglineSize === 'text-sm' ? 'text-[9px] sm:text-xs' :
+                                        'text-xs sm:text-sm'
                                     } font-medium tracking-wide leading-relaxed mt-0.5 line-clamp-2 whitespace-normal break-words ${!itemTaglineColor ? cardSubColor : ''}`}
                                 >
                                   {itemTagline}
@@ -2052,9 +2309,9 @@ function UserDashboardContent() {
                               <span className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider block">Engagement</span>
                               <div className="flex items-center gap-1.5">
                                 <span className={`text-xs font-black capitalize ${engagementLevel === 'Excellent' ? 'text-amber-500' :
-                                    engagementLevel === 'Active' ? 'text-emerald-500' :
-                                      engagementLevel === 'Standard' ? 'text-[#3f5ce6]' :
-                                        'text-muted-foreground'
+                                  engagementLevel === 'Active' ? 'text-emerald-500' :
+                                    engagementLevel === 'Standard' ? 'text-[#3f5ce6]' :
+                                      'text-muted-foreground'
                                   }`}>
                                   {engagementLevel}
                                 </span>
@@ -2080,8 +2337,8 @@ function UserDashboardContent() {
                               </div>
 
                               <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full flex items-center gap-1 border ${activeCard?.status === 'active'
-                                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                                  : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                                : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
                                 }`}>
                                 <span className={`w-1.5 h-1.5 rounded-full ${activeCard?.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
                                 {activeCard?.status === 'active' ? 'Active / Online' : 'Paused / Offline'}
@@ -2122,8 +2379,8 @@ function UserDashboardContent() {
                             <button
                               onClick={handleToggleCardStatus}
                               className={`w-full px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer active:scale-98 transition-all flex items-center justify-center gap-1.5 border shrink-0 ${activeCard?.status === 'active'
-                                  ? 'bg-red-500/5 border-red-500/20 text-red-500 dark:text-red-400 hover:bg-red-500/10'
-                                  : 'bg-emerald-500/5 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
+                                ? 'bg-red-500/5 border-red-500/20 text-red-500 dark:text-red-400 hover:bg-red-500/10'
+                                : 'bg-emerald-500/5 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
                                 }`}
                             >
                               <span className={`w-1.5 h-1.5 rounded-full ${activeCard?.status === 'active' ? 'bg-red-500' : 'bg-emerald-500 animate-pulse'}`} />
@@ -2306,83 +2563,214 @@ function UserDashboardContent() {
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl">
                     {cardProfiles.map((p: any) => (
                       <div
                         key={p.id}
-                        className={`group bg-card border rounded-2xl p-5 space-y-4 transition-all cursor-pointer hover:shadow-lg relative overflow-hidden ${p.is_active ? 'border-emerald-500/40 shadow-emerald-500/5' : 'border-border hover:border-[#3f5ce6]/30'
+                        className={`group bg-card border rounded-3xl transition-all cursor-pointer hover:shadow-xl relative overflow-hidden flex flex-col justify-between ${p.is_active ? 'border-emerald-500/40 shadow-emerald-500/5' : 'border-border hover:border-[#3f5ce6]/30'
                           }`}
-                        onClick={() => setActiveProfile(p)}
+                        onClick={() => {
+                          setActiveProfile(p);
+                          handleOpenEditProfile(p);
+                        }}
                       >
-                        {/* Dynamic background theme gradient overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#3f5ce6]/2 to-transparent pointer-events-none" />
-
-                        {/* Avatar + name row */}
-                        <div className="relative z-10 flex items-start gap-3">
-                          <div className="relative shrink-0">
-                            {p.avatar_url ? (
-                              <img src={p.avatar_url} alt={p.profile_name} className="w-12 h-12 rounded-xl object-cover border border-border" />
+                        {/* Card Top / Header Cover wrapper with padding */}
+                        <div className="px-4 pt-4 w-full shrink-0">
+                          <div className={`relative w-full h-32 overflow-hidden rounded-[20px] ${p.bg_image_url ? 'bg-gradient-to-br from-sky-200 via-sky-100 to-white' : 'bg-muted'
+                            }`}>
+                            {p.bg_image_url ? (
+                              <img src={p.bg_image_url} alt="Cover" className="w-full h-full object-cover" />
                             ) : (
-                              <div className="w-12 h-12 rounded-xl bg-[#3f5ce6]/10 flex items-center justify-center text-lg font-bold text-[#3f5ce6]">
-                                {p.profile_name?.[0]?.toUpperCase() || 'P'}
+                              /* Identical background layering (bg-[#3f5ce6]/10 on top of bg-muted) as the avatar placeholder */
+                              <div className="w-full h-full bg-[#3f5ce6]/10 flex items-center justify-center px-6 text-center select-none text-xl font-black text-[#3f5ce6]">
+                                {p.profile_name}
                               </div>
                             )}
-                            {p.is_active && (
-                              <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-background animate-pulse" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <h4 className="text-sm font-bold text-foreground truncate">{p.display_name || p.profile_name}</h4>
-                              {p.is_active && (
-                                <span className="text-[8px] font-bold text-emerald-500 bg-emerald-500/10 rounded-full px-2 py-0.5 border border-emerald-500/20 uppercase tracking-wider shrink-0">LIVE</span>
-                              )}
-                              {p.primary_profile && (
-                                <span className="text-[8px] font-bold text-amber-500 bg-amber-500/10 rounded-full px-2 py-0.5 border border-amber-500/20 uppercase tracking-wider shrink-0 flex items-center gap-0.5">
-                                  <Sparkles size={8} className="fill-amber-500/20" /> Primary
+
+                            {/* Primary / Set Primary Action (Top Right) */}
+                            <div className="absolute top-3 right-3 z-20">
+                              {p.primary_profile ? (
+                                <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-gradient-to-r from-[#3f5ce6] to-[#506df0] text-white text-[10px] font-bold shadow-lg shadow-[#3f5ce6]/25 select-none border border-white/10 flex items-center">
+                                  <Check size={11} className="stroke-[3.5] mr-1" /> Primary
                                 </span>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSetProfilePrimary(p.id);
+                                  }}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-zinc-950/60 hover:bg-zinc-950/80 backdrop-blur-md text-zinc-100 hover:text-white border border-white/10 hover:border-white/20 shadow-md text-[10px] font-bold cursor-pointer transition-all active:scale-95 duration-200"
+                                >
+                                  Set Primary +
+                                </button>
                               )}
                             </div>
-                            <p className="text-[11px] text-muted-foreground font-medium truncate mt-0.5">{p.title || 'No title set'}</p>
-                            <p className="text-[10px] text-muted-foreground/70 mt-0.5 font-mono">{p.profile_name}</p>
                           </div>
                         </div>
 
-                        {p.bio && (
-                          <p className="relative z-10 text-xs text-muted-foreground line-clamp-2 leading-relaxed">{p.bio}</p>
-                        )}
+                        {/* Card Body */}
+                        <div className="flex-1 px-5 pb-5 relative flex flex-col justify-between">
+                          {/* Avatar Block */}
+                          <div className="flex justify-between items-start shrink-0">
+                            <div className="relative -mt-10 shrink-0 z-10">
+                              <div className="w-20 h-20 rounded-full border-4 border-card bg-muted shadow-sm overflow-hidden flex items-center justify-center">
+                                {p.avatar_url ? (
+                                  <img src={p.avatar_url} alt={p.profile_name} className="w-full h-full object-cover" />
+                                ) : (
+                                  <div className="w-full h-full bg-[#3f5ce6]/10 flex items-center justify-center text-xl font-black text-[#3f5ce6]">
+                                    {p.profile_name?.[0]?.toUpperCase() || 'P'}
+                                  </div>
+                                )}
+                              </div>
+                              {/* Live Indication */}
+                              {p.is_active ? (
+                                <span className="absolute bottom-1.5 right-1.5 w-4 h-4 bg-emerald-500 border-2 border-card rounded-full flex items-center justify-center shadow-sm" title="Profile is Live">
+                                  <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping absolute" />
+                                  <span className="w-1.5 h-1.5 bg-white rounded-full" />
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSetProfileLive(p.id);
+                                  }}
+                                  className="absolute bottom-1.5 right-1.5 w-4 h-4 bg-zinc-400 hover:bg-emerald-400 border-2 border-card rounded-full flex items-center justify-center shadow-sm cursor-pointer transition-colors"
+                                  title="Set Live (Activate)"
+                                >
+                                  <span className="w-1 h-1 bg-white rounded-full" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
 
-                        {/* Actions */}
-                        <div className="relative z-10 flex gap-2 pt-1">
+                          {/* Profile Title, Display Name, Tagline & Bio */}
+                          <div className="mt-3 text-left">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <h4 className="text-sm font-extrabold text-foreground truncate">{p.display_name || p.profile_name}</h4>
+                                <p className="text-[11px] text-muted-foreground leading-normal mt-0.5 line-clamp-2 min-h-[32px]">{p.title || 'No tagline set'}</p>
+                              </div>
+
+                              {/* Profile name capsule badge at the end of name/tagline row */}
+                              <div className="shrink-0 pt-0.5">
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-sm select-none">
+                                  <div className="w-5 h-5 rounded-full bg-[#3f5ce6] flex items-center justify-center text-[10px] font-black text-white shrink-0">
+                                    {p.profile_name?.[0]?.toUpperCase() || 'P'}
+                                  </div>
+                                  <span className="text-xs font-bold text-zinc-800 dark:text-muted-foreground pr-0.5 truncate max-w-[90px] sm:max-w-[120px]" title={p.profile_name}>
+                                    {p.profile_name}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {p.bio && (
+                              <p className="text-[11px] text-muted-foreground/75 dark:text-zinc-400/75 leading-relaxed mt-2.5 line-clamp-3">
+                                {p.bio}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* vCard Actions Section */}
+                          <div className="mt-4">
+                            {(() => {
+                              const vc = vcardDataMap[p.id];
+                              const hasVcard = vc && (
+                                vc.first_name?.trim() ||
+                                vc.last_name?.trim() ||
+                                (vc.phones && vc.phones.length > 0) ||
+                                (vc.emails && vc.emails.length > 0)
+                              );
+
+                              if (hasVcard) {
+                                return (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDownloadVCard(vc, p);
+                                    }}
+                                    className="w-full py-2 px-3 rounded-xl border border-border bg-muted/40 hover:bg-muted/70 text-[11px] font-bold text-foreground flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-98"
+                                  >
+                                    <Download size={12} /> Save Contact
+                                  </button>
+                                );
+                              } else {
+                                return (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      router.push('/dashboard?tab=vcard');
+                                    }}
+                                    className="w-full py-2 px-3 rounded-xl border border-dashed border-[#3f5ce6]/30 bg-[#3f5ce6]/5 hover:bg-[#3f5ce6]/10 text-[11px] font-bold text-[#3f5ce6] flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-98"
+                                  >
+                                    <Plus size={12} /> Add vCard Details
+                                  </button>
+                                );
+                              }
+                            })()}
+                          </div>
+                        </div>
+
+                        {/* Card Bottom / Quick Add Footer */}
+                        <div className="border-t border-border grid grid-cols-4 divide-x divide-border bg-muted/10 dark:bg-zinc-800/10 shrink-0">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleOpenEditProfile(p);
+                              setActiveProfile(p);
+                              router.push('/dashboard?tab=links');
                             }}
-                            className="flex-grow py-1.5 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all text-center cursor-pointer"
+                            className="py-3 flex flex-col items-center justify-center gap-1 hover:bg-muted/50 dark:hover:bg-zinc-800/40 transition-colors group cursor-pointer"
+                            title="Add Social & Payment Links"
                           >
-                            Edit
+                            <span className="text-muted-foreground group-hover:text-[#3f5ce6] transition-colors">
+                              <Link2 size={15} />
+                            </span>
+                            <span className="text-[9px] font-bold text-muted-foreground group-hover:text-foreground">Links</span>
                           </button>
-                          {!p.is_active && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSetProfileLive(p.id);
-                              }}
-                              className="flex-grow py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 text-xs font-semibold text-emerald-600 hover:bg-emerald-500/10 transition-all text-center cursor-pointer"
-                            >
-                              Set Live
-                            </button>
-                          )}
+
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleDeleteProfile(p);
+                              setActiveProfile(p);
+                              router.push('/dashboard?tab=leads');
                             }}
-                            className="p-1.5 rounded-lg border border-red-500/20 bg-red-500/5 text-red-500 hover:bg-red-500/15 cursor-pointer active:scale-95 transition-all flex items-center justify-center shrink-0"
-                            title="Delete Profile"
+                            className="py-3 flex flex-col items-center justify-center gap-1 hover:bg-muted/50 dark:hover:bg-zinc-800/40 transition-colors group cursor-pointer"
+                            title="Manage Captured Leads"
                           >
-                            <Trash2 size={13} />
+                            <span className="text-muted-foreground group-hover:text-[#3f5ce6] transition-colors">
+                              <Users size={15} />
+                            </span>
+                            <span className="text-[9px] font-bold text-muted-foreground group-hover:text-foreground">Leads</span>
+                          </button>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveProfile(p);
+                              router.push('/dashboard?tab=products');
+                            }}
+                            className="py-3 flex flex-col items-center justify-center gap-1 hover:bg-muted/50 dark:hover:bg-zinc-800/40 transition-colors group cursor-pointer"
+                            title="Add Showcase Products"
+                          >
+                            <span className="text-muted-foreground group-hover:text-[#3f5ce6] transition-colors">
+                              <Package size={15} />
+                            </span>
+                            <span className="text-[9px] font-bold text-muted-foreground group-hover:text-foreground">Products</span>
+                          </button>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveProfile(p);
+                              router.push('/dashboard?tab=feeds');
+                            }}
+                            className="py-3 flex flex-col items-center justify-center gap-1 hover:bg-muted/50 dark:hover:bg-zinc-800/40 transition-colors group cursor-pointer"
+                            title="Add Feeds"
+                          >
+                            <span className="text-muted-foreground group-hover:text-[#3f5ce6] transition-colors">
+                              <Zap size={15} />
+                            </span>
+                            <span className="text-[9px] font-bold text-muted-foreground group-hover:text-foreground">Feeds</span>
                           </button>
                         </div>
                       </div>
@@ -2442,7 +2830,7 @@ function UserDashboardContent() {
                         <div className="space-y-2">
                           <label className="text-[10px] uppercase font-bold text-muted-foreground dark:text-zinc-400 tracking-wider block">Profile Assets</label>
                           <div className="relative mb-14 mt-1">
-                            
+
                             {/* Banner Cover Container */}
                             {profileForm.bgImageUrl ? (
                               <div className="relative w-full h-36 rounded-xl border border-border dark:border-zinc-800 bg-muted dark:bg-zinc-900 overflow-hidden flex items-center justify-center group">
@@ -2599,11 +2987,10 @@ function UserDashboardContent() {
                                   isActive: true
                                 }));
                               }}
-                              className={`flex-grow py-2 text-center text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                                profileForm.status === 'active'
-                                  ? 'bg-[#3f5ce6] text-white shadow-sm border border-[#3f5ce6]'
-                                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 dark:hover:bg-zinc-800/20'
-                              }`}
+                              className={`flex-grow py-2 text-center text-xs font-bold rounded-lg transition-all cursor-pointer ${profileForm.status === 'active'
+                                ? 'bg-[#3f5ce6] text-white shadow-sm border border-[#3f5ce6]'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 dark:hover:bg-zinc-800/20'
+                                }`}
                             >
                               Active
                             </button>
@@ -2616,11 +3003,10 @@ function UserDashboardContent() {
                                   isActive: false
                                 }));
                               }}
-                              className={`flex-grow py-2 text-center text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                                profileForm.status === 'inactive'
-                                  ? 'bg-[#3f5ce6] text-white shadow-sm border border-[#3f5ce6]'
-                                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 dark:hover:bg-zinc-800/20'
-                              }`}
+                              className={`flex-grow py-2 text-center text-xs font-bold rounded-lg transition-all cursor-pointer ${profileForm.status === 'inactive'
+                                ? 'bg-[#3f5ce6] text-white shadow-sm border border-[#3f5ce6]'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 dark:hover:bg-zinc-800/20'
+                                }`}
                             >
                               Inactive
                             </button>
@@ -2713,6 +3099,22 @@ function UserDashboardContent() {
                           </div>
                         ) : (
                           <div className="flex gap-3 w-full">
+                            {editingProfile && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (confirm("Are you sure you want to delete this profile?")) {
+                                    setShowProfileModal(false)
+                                    await handleDeleteProfile(editingProfile)
+                                  }
+                                }}
+                                className="py-2 px-3.5 rounded-xl border border-red-500/35 bg-red-500/5 hover:bg-red-550/10 dark:hover:bg-red-500/15 text-red-500 dark:text-red-400 font-semibold text-xs cursor-pointer transition-all active:scale-95 flex items-center gap-1.5 shrink-0"
+                                title="Delete Profile"
+                              >
+                                <Trash2 size={13} />
+                                <span>Delete</span>
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => {
@@ -2722,14 +3124,14 @@ function UserDashboardContent() {
                                   setShowProfileModal(false)
                                 }
                               }}
-                              className="flex-1 py-2 rounded-xl border border-border dark:border-zinc-800 text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-white hover:bg-muted/50 dark:hover:bg-zinc-800/40 text-xs font-semibold cursor-pointer text-center transition-all active:scale-98"
+                              className="flex-grow py-2 rounded-xl border border-border dark:border-zinc-800 text-muted-foreground dark:text-zinc-400 hover:text-foreground dark:hover:text-white hover:bg-muted/50 dark:hover:bg-zinc-800/40 text-xs font-semibold cursor-pointer text-center transition-all active:scale-98"
                             >
                               Cancel
                             </button>
                             <button
                               type="submit"
                               disabled={savingProfile}
-                              className="flex-1 py-2 rounded-xl bg-[#3f5ce6] hover:bg-[#3050d8] text-white text-xs font-bold shadow-lg shadow-[#3f5ce6]/25 transition-all cursor-pointer active:scale-98 flex items-center justify-center gap-1.5 disabled:opacity-60"
+                              className="flex-grow py-2 rounded-xl bg-[#3f5ce6] hover:bg-[#3050d8] text-white text-xs font-bold shadow-lg shadow-[#3f5ce6]/25 transition-all cursor-pointer active:scale-98 flex items-center justify-center gap-1.5 disabled:opacity-60"
                             >
                               {savingProfile ? (
                                 <>
@@ -2758,7 +3160,7 @@ function UserDashboardContent() {
             {/* TAB: V CARD                                              */}
             {/* ══════════════════════════════════════════════════════════ */}
             {activeTab === 'vcard' && !isAllCards && (
-              <div className="space-y-6 animate-fadeIn text-left max-w-4xl">
+              <div className="space-y-6 animate-fadeIn text-left max-w-6xl">
                 {/* Header */}
                 <div>
                   <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">vCard Contact Details</h3>
@@ -2778,354 +3180,721 @@ function UserDashboardContent() {
                   </div>
                 </div>
 
-                <div className="bg-card border border-border/50 rounded-2xl p-6 sm:p-8 space-y-6">
-                  {loadingVCard ? (
-                    <div className="flex justify-center items-center py-12">
-                      <Loader2 className="animate-spin text-[#3f5ce6]" size={24} />
-                      <span className="text-xs text-muted-foreground ml-2">Loading vCard details...</span>
-                    </div>
-                  ) : (
-                    <form onSubmit={(e) => { e.preventDefault(); saveVCard(vcardForm); }} className="space-y-6">
+                {loadingVCard ? (
+                  <div className="bg-card border border-border/50 rounded-2xl p-8 flex justify-center items-center py-16">
+                    <Loader2 className="animate-spin text-[#3f5ce6]" size={24} />
+                    <span className="text-xs text-muted-foreground ml-2">Loading vCard details...</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    {/* Left Column: Form Editor */}
+                    <div className="lg:col-span-7 bg-card border border-border/50 rounded-2xl p-6 sm:p-8 space-y-6">
+                      <form onSubmit={(e) => { e.preventDefault(); saveVCard(vcardForm); }} className="space-y-6">
 
-                      {/* Name section */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-xs font-semibold text-muted-foreground">First Name</label>
-                          <input
-                            type="text"
-                            required
-                            value={vcardForm.firstName}
-                            onChange={(e) => setVcardForm(prev => ({ ...prev, firstName: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
-                            placeholder="Rahul"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-semibold text-muted-foreground">Last Name</label>
-                          <input
-                            type="text"
-                            required
-                            value={vcardForm.lastName}
-                            onChange={(e) => setVcardForm(prev => ({ ...prev, lastName: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
-                            placeholder="Kumar"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Work details */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-xs font-semibold text-muted-foreground">Job Title</label>
-                          <input
-                            type="text"
-                            value={vcardForm.jobTitle}
-                            onChange={(e) => setVcardForm(prev => ({ ...prev, jobTitle: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
-                            placeholder="Product Designer"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-semibold text-muted-foreground">Company / Organization</label>
-                          <input
-                            type="text"
-                            value={vcardForm.organization}
-                            onChange={(e) => setVcardForm(prev => ({ ...prev, organization: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
-                            placeholder="Envitra Technologies"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-xs font-semibold text-muted-foreground">Website URL</label>
-                          <input
-                            type="url"
-                            value={vcardForm.website}
-                            onChange={(e) => setVcardForm(prev => ({ ...prev, website: e.target.value }))}
-                            className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
-                            placeholder="https://envitra.in"
-                          />
-                        </div>
-                      </div>
-
-                      <hr className="border-border/50" />
-
-                      {/* Phones array */}
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Phone Numbers</h4>
-                          <button
-                            type="button"
-                            onClick={handleAddPhone}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#3f5ce6]/10 border border-[#3f5ce6]/20 text-[#3f5ce6] hover:bg-[#3f5ce6]/20 text-xs font-semibold transition-all"
-                          >
-                            <Plus size={12} /> Add Phone
-                          </button>
-                        </div>
-
-                        {vcardForm.phones.length === 0 ? (
-                          <p className="text-xs text-muted-foreground italic">No phone numbers added yet.</p>
-                        ) : (
-                          <div className="space-y-3">
-                            {vcardForm.phones.map((phone, index) => (
-                              <div key={index} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-                                <select
-                                  value={phone.label}
-                                  onChange={(e) => handlePhoneChange(index, 'label', e.target.value)}
-                                  className="w-full sm:w-28 px-2.5 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground focus:outline-none focus:border-[#3f5ce6]"
-                                >
-                                  <option value="Mobile">Mobile</option>
-                                  <option value="Work">Work</option>
-                                  <option value="Home">Home</option>
-                                  <option value="Main">Main</option>
-                                  <option value="Fax">Fax</option>
-                                </select>
-                                <input
-                                  type="text"
-                                  required
-                                  value={phone.number}
-                                  onChange={(e) => handlePhoneChange(index, 'number', e.target.value)}
-                                  className="flex-grow w-full px-3 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground focus:outline-none focus:border-[#3f5ce6]"
-                                  placeholder="+91 98765 43210"
-                                />
-                                <div className="flex items-center gap-3 w-full sm:w-auto pt-1 sm:pt-0">
-                                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground select-none cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={phone.is_primary}
-                                      onChange={(e) => {
-                                        // set primary and reset other phones primary
-                                        const updatedPhones = vcardForm.phones.map((p, i) => ({
-                                          ...p,
-                                          is_primary: i === index
-                                        }))
-                                        setVcardForm(prev => ({ ...prev, phones: updatedPhones }))
-                                      }}
-                                      className="rounded text-[#3f5ce6] focus:ring-[#3f5ce6]"
-                                    />
-                                    Primary
-                                  </label>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemovePhone(index)}
-                                    className="p-1.5 rounded hover:bg-red-500/10 text-red-500 transition-colors ml-auto sm:ml-0"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <hr className="border-border/50" />
-
-                      {/* Emails array */}
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Email Addresses</h4>
-                          <button
-                            type="button"
-                            onClick={handleAddEmail}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#3f5ce6]/10 border border-[#3f5ce6]/20 text-[#3f5ce6] hover:bg-[#3f5ce6]/20 text-xs font-semibold transition-all"
-                          >
-                            <Plus size={12} /> Add Email
-                          </button>
-                        </div>
-
-                        {vcardForm.emails.length === 0 ? (
-                          <p className="text-xs text-muted-foreground italic">No email addresses added yet.</p>
-                        ) : (
-                          <div className="space-y-3">
-                            {vcardForm.emails.map((email, index) => (
-                              <div key={index} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-                                <select
-                                  value={email.label}
-                                  onChange={(e) => handleEmailChange(index, 'label', e.target.value)}
-                                  className="w-full sm:w-28 px-2.5 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground focus:outline-none focus:border-[#3f5ce6]"
-                                >
-                                  <option value="Work">Work</option>
-                                  <option value="Personal">Personal</option>
-                                  <option value="Other">Other</option>
-                                </select>
-                                <input
-                                  type="email"
-                                  required
-                                  value={email.email}
-                                  onChange={(e) => handleEmailChange(index, 'email', e.target.value)}
-                                  className="flex-grow w-full px-3 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground focus:outline-none focus:border-[#3f5ce6]"
-                                  placeholder="rahul@company.com"
-                                />
-                                <div className="flex items-center gap-3 w-full sm:w-auto pt-1 sm:pt-0">
-                                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground select-none cursor-pointer">
-                                    <input
-                                      type="checkbox"
-                                      checked={email.is_primary}
-                                      onChange={(e) => {
-                                        const updatedEmails = vcardForm.emails.map((em, i) => ({
-                                          ...em,
-                                          is_primary: i === index
-                                        }))
-                                        setVcardForm(prev => ({ ...prev, emails: updatedEmails }))
-                                      }}
-                                      className="rounded text-[#3f5ce6] focus:ring-[#3f5ce6]"
-                                    />
-                                    Primary
-                                  </label>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveEmail(index)}
-                                    className="p-1.5 rounded hover:bg-red-500/10 text-red-500 transition-colors ml-auto sm:ml-0"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <hr className="border-border/50" />
-
-                      {/* Location details */}
-                      <div className="space-y-3">
-                        <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Postal Address</h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className="space-y-1">
-                            <label className="text-xs font-semibold text-muted-foreground">Street Address</label>
-                            <input
-                              type="text"
-                              value={vcardForm.street}
-                              onChange={(e) => setVcardForm(prev => ({ ...prev, street: e.target.value }))}
-                              className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
-                              placeholder="82, OMR Road, Karapakkam"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs font-semibold text-muted-foreground">City</label>
-                            <input
-                              type="text"
-                              value={vcardForm.city}
-                              onChange={(e) => setVcardForm(prev => ({ ...prev, city: e.target.value }))}
-                              className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
-                              placeholder="Chennai"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-xs font-semibold text-muted-foreground">State / Region</label>
-                            <input
-                              type="text"
-                              value={vcardForm.state}
-                              onChange={(e) => setVcardForm(prev => ({ ...prev, state: e.target.value }))}
-                              className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
-                              placeholder="Tamil Nadu"
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 gap-3">
+                        {/* Name section */}
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-bold text-[#3f5ce6] uppercase tracking-wider select-none">Personal Info</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-1">
-                              <label className="text-xs font-semibold text-muted-foreground">Postal Code</label>
+                              <label className="text-xs font-semibold text-muted-foreground">First Name</label>
                               <input
                                 type="text"
-                                value={vcardForm.postalCode}
-                                onChange={(e) => setVcardForm(prev => ({ ...prev, postalCode: e.target.value }))}
+                                required
+                                value={vcardForm.firstName}
+                                onChange={(e) => setVcardForm(prev => ({ ...prev, firstName: e.target.value }))}
                                 className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
-                                placeholder="600097"
+                                placeholder="Rahul"
                               />
                             </div>
                             <div className="space-y-1">
-                              <label className="text-xs font-semibold text-muted-foreground">Country</label>
+                              <label className="text-xs font-semibold text-muted-foreground">Last Name</label>
                               <input
                                 type="text"
-                                value={vcardForm.country}
-                                onChange={(e) => setVcardForm(prev => ({ ...prev, country: e.target.value }))}
+                                required
+                                value={vcardForm.lastName}
+                                onChange={(e) => setVcardForm(prev => ({ ...prev, lastName: e.target.value }))}
                                 className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
-                                placeholder="India"
+                                placeholder="Kumar"
                               />
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      <hr className="border-border/50" />
+                        <hr className="border-border/50" />
 
-                      {/* Custom/social fields array */}
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Custom Fields</h4>
-                            <p className="text-[10px] text-muted-foreground">Add custom links (e.g. LinkedIn, Twitter, Custom Label)</p>
+                        {/* Work details */}
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-bold text-[#3f5ce6] uppercase tracking-wider select-none">Professional Info</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="space-y-1 col-span-1">
+                              <label className="text-xs font-semibold text-muted-foreground">Company / Org</label>
+                              <input
+                                type="text"
+                                value={vcardForm.organization}
+                                onChange={(e) => setVcardForm(prev => ({ ...prev, organization: e.target.value }))}
+                                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
+                                placeholder="Envitra Technologies"
+                              />
+                            </div>
+                            <div className="space-y-1 col-span-1">
+                              <label className="text-xs font-semibold text-muted-foreground">Department</label>
+                              <input
+                                type="text"
+                                value={vcardForm.department}
+                                onChange={(e) => setVcardForm(prev => ({ ...prev, department: e.target.value }))}
+                                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
+                                placeholder="Engineering"
+                              />
+                            </div>
+                            <div className="space-y-1 col-span-1">
+                              <label className="text-xs font-semibold text-muted-foreground">Job Title</label>
+                              <input
+                                type="text"
+                                value={vcardForm.jobTitle}
+                                onChange={(e) => setVcardForm(prev => ({ ...prev, jobTitle: e.target.value }))}
+                                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
+                                placeholder="Product Designer"
+                              />
+                            </div>
                           </div>
-                          <button
-                            type="button"
-                            onClick={handleAddCustomField}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#3f5ce6]/10 border border-[#3f5ce6]/20 text-[#3f5ce6] hover:bg-[#3f5ce6]/20 text-xs font-semibold transition-all"
-                          >
-                            <Plus size={12} /> Add Field
-                          </button>
                         </div>
 
-                        {vcardForm.customFields.length === 0 ? (
-                          <p className="text-xs text-muted-foreground italic">No custom fields added yet.</p>
-                        ) : (
-                          <div className="space-y-3">
-                            {vcardForm.customFields.map((field, index) => (
-                              <div key={index} className="flex gap-3 items-center">
-                                <input
-                                  type="text"
-                                  required
-                                  value={field.key}
-                                  onChange={(e) => handleCustomFieldChange(index, 'key', e.target.value)}
-                                  className="w-28 sm:w-36 px-2.5 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground focus:outline-none focus:border-[#3f5ce6]"
-                                  placeholder="LinkedIn"
-                                />
-                                <input
-                                  type="text"
-                                  required
-                                  value={field.value}
-                                  onChange={(e) => handleCustomFieldChange(index, 'value', e.target.value)}
-                                  className="flex-grow px-3 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground focus:outline-none focus:border-[#3f5ce6]"
-                                  placeholder="https://linkedin.com/in/rahulkumar"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveCustomField(index)}
-                                  className="p-1.5 rounded hover:bg-red-500/10 text-red-500 transition-colors"
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            ))}
+                        <hr className="border-border/50" />
+
+                        {/* Phones array */}
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <h4 className="text-xs font-bold text-[#3f5ce6] uppercase tracking-wider select-none">Phone Numbers</h4>
+                            <button
+                              type="button"
+                              onClick={handleAddPhone}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#3f5ce6]/10 border border-[#3f5ce6]/20 text-[#3f5ce6] hover:bg-[#3f5ce6]/20 text-xs font-semibold transition-all cursor-pointer"
+                            >
+                              <Plus size={12} /> Add Phone
+                            </button>
                           </div>
-                        )}
-                      </div>
 
-                      <hr className="border-border/50" />
-
-                      {/* Save action */}
-                      <div className="flex justify-end pt-2">
-                        <button
-                          type="submit"
-                          disabled={savingVCard}
-                          className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-[#3f5ce6] hover:bg-[#3050d8] text-white text-xs font-semibold cursor-pointer shadow-md transition-all active:scale-98 disabled:opacity-50"
-                        >
-                          {savingVCard ? (
-                            <>
-                              <Loader2 className="animate-spin text-white" size={13} />
-                              Saving...
-                            </>
+                          {vcardForm.phones.length === 0 ? (
+                            <p className="text-xs text-muted-foreground italic">No phone numbers added yet.</p>
                           ) : (
-                            <>
-                              <Save size={13} />
-                              Save vCard Details
-                            </>
+                            <div className="space-y-3">
+                              {vcardForm.phones.map((phone, index) => (
+                                <div key={index} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                                  <select
+                                    value={phone.label}
+                                    onChange={(e) => handlePhoneChange(index, 'label', e.target.value)}
+                                    className="w-full sm:w-28 px-2.5 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground focus:outline-none focus:border-[#3f5ce6] cursor-pointer"
+                                  >
+                                    <option value="Mobile">Mobile</option>
+                                    <option value="Work">Work</option>
+                                    <option value="Home">Home</option>
+                                    <option value="Main">Main</option>
+                                    <option value="Fax">Fax</option>
+                                  </select>
+                                  <input
+                                    type="text"
+                                    required
+                                    value={phone.number}
+                                    onChange={(e) => handlePhoneChange(index, 'number', e.target.value)}
+                                    className="flex-grow w-full px-3 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground focus:outline-none focus:border-[#3f5ce6]"
+                                    placeholder="+91 98765 43210"
+                                  />
+                                  <div className="flex items-center gap-3 w-full sm:w-auto pt-1 sm:pt-0 shrink-0">
+                                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground select-none cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={phone.is_primary}
+                                        onChange={(e) => {
+                                          const updatedPhones = vcardForm.phones.map((p, i) => ({
+                                            ...p,
+                                            is_primary: i === index
+                                          }))
+                                          setVcardForm(prev => ({ ...prev, phones: updatedPhones }))
+                                        }}
+                                        className="rounded text-[#3f5ce6] focus:ring-[#3f5ce6]"
+                                      />
+                                      Primary
+                                    </label>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemovePhone(index)}
+                                      className="p-1.5 rounded hover:bg-red-500/10 text-red-500 transition-colors ml-auto sm:ml-0 cursor-pointer"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           )}
-                        </button>
-                      </div>
+                        </div>
 
-                    </form>
-                  )}
-                </div>
+                        <hr className="border-border/50" />
+
+                        {/* Emails array */}
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <h4 className="text-xs font-bold text-[#3f5ce6] uppercase tracking-wider select-none">Email Addresses</h4>
+                            <button
+                              type="button"
+                              onClick={handleAddEmail}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#3f5ce6]/10 border border-[#3f5ce6]/20 text-[#3f5ce6] hover:bg-[#3f5ce6]/20 text-xs font-semibold transition-all cursor-pointer"
+                            >
+                              <Plus size={12} /> Add Email
+                            </button>
+                          </div>
+
+                          {vcardForm.emails.length === 0 ? (
+                            <p className="text-xs text-muted-foreground italic">No email addresses added yet.</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {vcardForm.emails.map((email, index) => (
+                                <div key={index} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                                  <select
+                                    value={email.label}
+                                    onChange={(e) => handleEmailChange(index, 'label', e.target.value)}
+                                    className="w-full sm:w-28 px-2.5 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground focus:outline-none focus:border-[#3f5ce6] cursor-pointer"
+                                  >
+                                    <option value="Work">Work</option>
+                                    <option value="Personal">Personal</option>
+                                    <option value="Other">Other</option>
+                                  </select>
+                                  <input
+                                    type="email"
+                                    required
+                                    value={email.email}
+                                    onChange={(e) => handleEmailChange(index, 'email', e.target.value)}
+                                    className="flex-grow w-full px-3 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground focus:outline-none focus:border-[#3f5ce6]"
+                                    placeholder="rahul@company.com"
+                                  />
+                                  <div className="flex items-center gap-3 w-full sm:w-auto pt-1 sm:pt-0 shrink-0">
+                                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground select-none cursor-pointer">
+                                      <input
+                                        type="checkbox"
+                                        checked={email.is_primary}
+                                        onChange={(e) => {
+                                          const updatedEmails = vcardForm.emails.map((em, i) => ({
+                                            ...em,
+                                            is_primary: i === index
+                                          }))
+                                          setVcardForm(prev => ({ ...prev, emails: updatedEmails }))
+                                        }}
+                                        className="rounded text-[#3f5ce6] focus:ring-[#3f5ce6]"
+                                      />
+                                      Primary
+                                    </label>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveEmail(index)}
+                                      className="p-1.5 rounded hover:bg-red-500/10 text-red-500 transition-colors ml-auto sm:ml-0 cursor-pointer"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <hr className="border-border/50" />
+
+                        {/* Custom Website URLs array */}
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <h4 className="text-xs font-bold text-[#3f5ce6] uppercase tracking-wider select-none">Website Links</h4>
+                            <button
+                              type="button"
+                              onClick={handleAddUrl}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#3f5ce6]/10 border border-[#3f5ce6]/20 text-[#3f5ce6] hover:bg-[#3f5ce6]/20 text-xs font-semibold transition-all cursor-pointer"
+                            >
+                              <Plus size={12} /> Add Website
+                            </button>
+                          </div>
+
+                          {vcardForm.urls.length === 0 ? (
+                            <p className="text-xs text-muted-foreground italic">No custom websites added yet.</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {vcardForm.urls.map((urlItem, index) => (
+                                <div key={index} className="flex gap-3 items-center">
+                                  <select
+                                    value={urlItem.label}
+                                    onChange={(e) => handleUrlChange(index, 'label', e.target.value)}
+                                    className="w-24 sm:w-28 px-2.5 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground focus:outline-none focus:border-[#3f5ce6] shrink-0 cursor-pointer"
+                                  >
+                                    <option value="Website">Website</option>
+                                    <option value="Portfolio">Portfolio</option>
+                                    <option value="Blog">Blog</option>
+                                    <option value="Company">Company</option>
+                                    <option value="Work">Work</option>
+                                    <option value="Other">Other</option>
+                                  </select>
+                                  <input
+                                    type="url"
+                                    required
+                                    value={urlItem.url}
+                                    onChange={(e) => handleUrlChange(index, 'url', e.target.value)}
+                                    className="flex-grow px-3 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground focus:outline-none focus:border-[#3f5ce6]"
+                                    placeholder="https://mywebsite.com"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveUrl(index)}
+                                    className="p-1.5 rounded hover:bg-red-500/10 text-red-500 transition-colors cursor-pointer shrink-0"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <hr className="border-border/50" />
+
+                        {/* Social Profile links array */}
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <h4 className="text-xs font-bold text-[#3f5ce6] uppercase tracking-wider select-none">Social Profiles</h4>
+                            <button
+                              type="button"
+                              onClick={handleAddSocial}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#3f5ce6]/10 border border-[#3f5ce6]/20 text-[#3f5ce6] hover:bg-[#3f5ce6]/20 text-xs font-semibold transition-all cursor-pointer"
+                            >
+                              <Plus size={12} /> Add Social
+                            </button>
+                          </div>
+
+                          {vcardForm.socials.length === 0 ? (
+                            <p className="text-xs text-muted-foreground italic">No social profile links added yet.</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {vcardForm.socials.map((social, index) => (
+                                <div key={index} className="flex gap-3 items-center">
+                                  <select
+                                    value={social.platform}
+                                    onChange={(e) => handleSocialChange(index, 'platform', e.target.value)}
+                                    className="w-24 sm:w-28 px-2.5 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground focus:outline-none focus:border-[#3f5ce6] shrink-0 cursor-pointer"
+                                  >
+                                    <option value="LinkedIn">LinkedIn</option>
+                                    <option value="Instagram">Instagram</option>
+                                    <option value="X">Twitter / X</option>
+                                    <option value="Facebook">Facebook</option>
+                                    <option value="YouTube">YouTube</option>
+                                    <option value="TikTok">TikTok</option>
+                                    <option value="WhatsApp">WhatsApp</option>
+                                  </select>
+                                  <div className="flex-grow flex flex-col gap-1 min-w-0">
+                                    <input
+                                      type="text"
+                                      required
+                                      value={social.username}
+                                      onChange={(e) => handleSocialChange(index, 'username', e.target.value)}
+                                      className="w-full px-3 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground focus:outline-none focus:border-[#3f5ce6]"
+                                      placeholder={
+                                        social.platform === 'WhatsApp' ? 'Phone number (e.g. +919876543210)' : 'Username / handle'
+                                      }
+                                    />
+                                    {social.url && (
+                                      <span className="text-[9px] text-muted-foreground truncate select-all">{social.url}</span>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveSocial(index)}
+                                    className="p-1.5 rounded hover:bg-red-500/10 text-red-500 transition-colors cursor-pointer shrink-0"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <hr className="border-border/50" />
+
+                        {/* Location details */}
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-bold text-[#3f5ce6] uppercase tracking-wider select-none">Postal Address</h4>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                              <label className="text-xs font-semibold text-muted-foreground">Street Address</label>
+                              <input
+                                type="text"
+                                value={vcardForm.street}
+                                onChange={(e) => setVcardForm(prev => ({ ...prev, street: e.target.value }))}
+                                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
+                                placeholder="82, OMR Road, Karapakkam"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-semibold text-muted-foreground">City</label>
+                              <input
+                                type="text"
+                                value={vcardForm.city}
+                                onChange={(e) => setVcardForm(prev => ({ ...prev, city: e.target.value }))}
+                                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
+                                placeholder="Chennai"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-semibold text-muted-foreground">State / Region</label>
+                              <input
+                                type="text"
+                                value={vcardForm.state}
+                                onChange={(e) => setVcardForm(prev => ({ ...prev, state: e.target.value }))}
+                                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
+                                placeholder="Tamil Nadu"
+                              />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <label className="text-xs font-semibold text-muted-foreground">Postal Code</label>
+                                <input
+                                  type="text"
+                                  value={vcardForm.postalCode}
+                                  onChange={(e) => setVcardForm(prev => ({ ...prev, postalCode: e.target.value }))}
+                                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
+                                  placeholder="600097"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="text-xs font-semibold text-muted-foreground">Country</label>
+                                <input
+                                  type="text"
+                                  value={vcardForm.country}
+                                  onChange={(e) => setVcardForm(prev => ({ ...prev, country: e.target.value }))}
+                                  className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
+                                  placeholder="India"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <hr className="border-border/50" />
+
+                        {/* Notes section */}
+                        <div className="space-y-3">
+                          <h4 className="text-xs font-bold text-[#3f5ce6] uppercase tracking-wider select-none">Notes</h4>
+                          <div className="space-y-1">
+                            <label className="text-xs font-semibold text-muted-foreground">Contact Notes</label>
+                            <textarea
+                              value={vcardForm.notes}
+                              onChange={(e) => setVcardForm(prev => ({ ...prev, notes: e.target.value }))}
+                              className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors min-h-[80px] leading-normal"
+                              placeholder="Add brief details or notes to share with this contact..."
+                            />
+                          </div>
+                        </div>
+
+                        <hr className="border-border/50" />
+
+                        {/* Custom Fields Fallback Section */}
+                        <div className="space-y-4">
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <h4 className="text-xs font-bold text-foreground uppercase tracking-wider select-none">Additional Custom Tags</h4>
+                              <p className="text-[10px] text-muted-foreground">Add custom tags for other contact attributes</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleAddCustomField}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#3f5ce6]/10 border border-[#3f5ce6]/20 text-[#3f5ce6] hover:bg-[#3f5ce6]/20 text-xs font-semibold transition-all cursor-pointer"
+                            >
+                              <Plus size={12} /> Add Tag
+                            </button>
+                          </div>
+
+                          {vcardForm.customFields.length === 0 ? (
+                            <p className="text-xs text-muted-foreground italic">No custom tags added yet.</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {vcardForm.customFields.map((field, index) => (
+                                <div key={index} className="flex gap-3 items-center">
+                                  <input
+                                    type="text"
+                                    required
+                                    value={field.key}
+                                    onChange={(e) => handleCustomFieldChange(index, 'key', e.target.value)}
+                                    className="w-28 sm:w-36 px-2.5 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground focus:outline-none focus:border-[#3f5ce6]"
+                                    placeholder="e.g. Birthday"
+                                  />
+                                  <input
+                                    type="text"
+                                    required
+                                    value={field.value}
+                                    onChange={(e) => handleCustomFieldChange(index, 'value', e.target.value)}
+                                    className="flex-grow px-3 py-1.5 rounded-lg border border-input bg-background text-xs text-foreground focus:outline-none focus:border-[#3f5ce6]"
+                                    placeholder="Value"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveCustomField(index)}
+                                    className="p-1.5 rounded hover:bg-red-500/10 text-red-500 transition-colors cursor-pointer"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Save Action */}
+                        <div className="flex justify-end pt-2">
+                          <button
+                            type="submit"
+                            disabled={savingVCard}
+                            className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-[#3f5ce6] hover:bg-[#3050d8] text-white text-xs font-semibold cursor-pointer shadow-md transition-all active:scale-98 disabled:opacity-50"
+                          >
+                            {savingVCard ? (
+                              <>
+                                <Loader2 className="animate-spin text-white" size={13} />
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <Save size={13} />
+                                Save vCard Details
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                      </form>
+                    </div>
+
+                    {/* Right Column: Visual Device Mockup Preview */}
+                    <div className="lg:col-span-5 relative select-none">
+                      <div className="sticky top-6">
+                        <h4 className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-4 select-none">Live Visual Preview</h4>
+
+                        {/* Realistic iPhone Wrapper */}
+                        <div className="relative mx-auto w-[310px] h-[610px] select-none">
+                          {/* Left buttons (Volume Up/Down) */}
+                          <div className="absolute left-[-4px] top-[110px] w-[4px] h-[36px] bg-zinc-700 dark:bg-zinc-800 rounded-l-md z-0" />
+                          <div className="absolute left-[-4px] top-[156px] w-[4px] h-[36px] bg-zinc-700 dark:bg-zinc-800 rounded-l-md z-0" />
+
+                          {/* Right button (Power) */}
+                          <div className="absolute right-[-4px] top-[130px] w-[4px] h-[60px] bg-zinc-700 dark:bg-zinc-800 rounded-r-md z-0" />
+
+                          {/* Outer Titanium band */}
+                          <div className="w-full h-full rounded-[50px] p-[3px] bg-gradient-to-b from-zinc-700 to-zinc-900 dark:from-zinc-800 dark:to-zinc-950 border border-zinc-700/50 shadow-2xl relative flex items-center justify-center z-10">
+
+                            {/* Inner Bezel */}
+                            <div className="w-full h-full rounded-[47px] bg-black p-[8px] relative flex flex-col overflow-hidden">
+
+                              {/* Screen Viewport */}
+                              <div className="w-full h-full rounded-[39px] bg-zinc-950/95 flex flex-col overflow-hidden relative border border-zinc-900">
+
+                                {/* Dynamic Island */}
+                                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-24 h-[22px] rounded-full bg-black z-50 flex items-center justify-between px-3.5 pointer-events-none">
+                                  {/* Camera sensor */}
+                                  <div className="w-1.5 h-1.5 rounded-full bg-[#151518]" />
+                                  {/* Active green recording indicator */}
+                                  <div className="w-1 h-1 rounded-full bg-emerald-500/90 shadow-[0_0_4px_rgba(16,185,129,0.8)] animate-pulse" />
+                                </div>
+
+                                {/* Status Bar */}
+                                <div className="h-8 px-6 pt-2 flex items-center justify-between text-[9px] font-bold text-white z-40 shrink-0 pointer-events-none select-none">
+                                  <span>9:41</span>
+                                  <div className="flex items-center gap-1.5">
+                                    {/* Cellular Bars */}
+                                    <svg className="w-2.5 h-2 text-white fill-current shrink-0" viewBox="0 0 100 100">
+                                      <rect x="0" y="70" width="14" height="30" rx="3" />
+                                      <rect x="22" y="50" width="14" height="50" rx="3" />
+                                      <rect x="44" y="30" width="14" height="70" rx="3" />
+                                      <rect x="66" y="10" width="14" height="90" rx="3" />
+                                    </svg>
+                                    {/* Wifi Icon */}
+                                    <svg className="w-2.5 h-2 text-white fill-none stroke-current stroke-[2]" viewBox="0 0 24 24">
+                                      <path d="M12 20h.01M8.5 16.5a5 5 0 0 1 7 0M5 13a10 10 0 0 1 14 0M1.5 9.5a15 15 0 0 1 21 0" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                    {/* Battery */}
+                                    <div className="w-4.5 h-2 rounded-[2.5px] border border-zinc-100/80 p-[0.5px] flex items-center shrink-0">
+                                      <div className="w-full h-full bg-zinc-100 rounded-[1px]" />
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Scrollable iOS Contact Page */}
+                                <div className="flex-1 overflow-y-auto px-4 pb-8 pt-1.5 space-y-4 scrollbar-none flex flex-col relative">
+
+                                  {/* Centered Profile Header */}
+                                  <div className="flex flex-col items-center text-center shrink-0">
+                                    <div className="w-18 h-18 rounded-full bg-gradient-to-br from-[#3f5ce6] to-[#506df0] p-[2px] shadow-md select-none relative animate-fadeIn mt-2">
+                                      <div className="w-full h-full rounded-full border border-zinc-950 bg-zinc-900 overflow-hidden flex items-center justify-center">
+                                        {activeProfile?.avatar_url ? (
+                                          <img src={activeProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                                        ) : (
+                                          <div className="w-full h-full bg-[#3f5ce6]/10 flex items-center justify-center text-xl font-black text-[#3f5ce6]">
+                                            {vcardForm.firstName?.[0]?.toUpperCase() || activeProfile?.profile_name?.[0]?.toUpperCase() || 'P'}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Centered Name */}
+                                    <h4 className="text-sm font-extrabold text-white mt-2 truncate w-full max-w-[200px]">
+                                      {vcardForm.firstName || vcardForm.lastName
+                                        ? `${vcardForm.firstName} ${vcardForm.lastName}`.trim()
+                                        : activeProfile?.display_name || activeProfile?.profile_name || 'Rahul Kumar'}
+                                    </h4>
+
+                                    {/* Centered Tagline & Department */}
+                                    {(vcardForm.jobTitle || vcardForm.organization) ? (
+                                      <p className="text-[9.5px] text-zinc-400 font-semibold mt-0.5 leading-normal truncate w-full max-w-[200px]">
+                                        {vcardForm.jobTitle} {vcardForm.organization ? `@ ${vcardForm.organization}` : ''}
+                                      </p>
+                                    ) : (
+                                      <p className="text-[9.5px] text-zinc-400 font-semibold mt-0.5 leading-normal">
+                                        Product Designer @ Envitra
+                                      </p>
+                                    )}
+                                    {vcardForm.department && (
+                                      <span className="mt-1 px-2 py-0.5 rounded-full bg-[#3f5ce6]/10 border border-[#3f5ce6]/25 text-[#3f5ce6] text-[6.5px] font-black tracking-wider uppercase">
+                                        {vcardForm.department}
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* iOS Action Buttons */}
+                                  <div className="flex items-center justify-center gap-4 py-2 shrink-0">
+                                    {[
+                                      { icon: '📞', label: 'call' },
+                                      { icon: '✉️', label: 'mail' },
+                                      { icon: '💬', label: 'text' },
+                                      { icon: '🌐', label: 'web' },
+                                    ].map((btn) => (
+                                      <div key={btn.label} className="flex flex-col items-center gap-1">
+                                        <div className="w-9 h-9 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-base shadow-inner">
+                                          {btn.icon}
+                                        </div>
+                                        <span className="text-[7px] text-zinc-400 font-semibold uppercase tracking-wide">{btn.label}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+
+                                  {/* Contact Info Cards */}
+                                  <div className="space-y-2 shrink-0">
+
+                                    {/* Phone */}
+                                    {vcardForm.phones && vcardForm.phones.filter(p => p.number).length > 0 && (
+                                      <div className="bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800">
+                                        {vcardForm.phones.filter(p => p.number).map((p, i) => (
+                                          <div key={i} className={`px-3 py-2.5 flex items-center justify-between ${i > 0 ? 'border-t border-zinc-800' : ''}`}>
+                                            <div>
+                                              <p className="text-[8px] text-zinc-500 font-semibold uppercase">{p.label || 'mobile'}</p>
+                                              <p className="text-[10px] text-[#4ade80] font-semibold mt-0.5">{p.number}</p>
+                                            </div>
+                                            <div className="w-6 h-6 rounded-full bg-[#4ade80]/10 flex items-center justify-center text-[10px]">📞</div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+
+                                    {/* Email */}
+                                    {vcardForm.emails && vcardForm.emails.filter(e => e.email).length > 0 && (
+                                      <div className="bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800">
+                                        {vcardForm.emails.filter(e => e.email).map((e, i) => (
+                                          <div key={i} className={`px-3 py-2.5 flex items-center justify-between ${i > 0 ? 'border-t border-zinc-800' : ''}`}>
+                                            <div className="flex-1 min-w-0 pr-2">
+                                              <p className="text-[8px] text-zinc-500 font-semibold uppercase">{e.label || 'email'}</p>
+                                              <p className="text-[9px] text-[#3f5ce6] font-semibold mt-0.5 truncate">{e.email}</p>
+                                            </div>
+                                            <div className="w-6 h-6 rounded-full bg-[#3f5ce6]/10 flex items-center justify-center text-[10px] shrink-0">✉️</div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+
+                                    {/* Address */}
+                                    {(vcardForm.street || vcardForm.city || vcardForm.country) && (
+                                      <div className="bg-zinc-900 rounded-xl px-3 py-2.5 border border-zinc-800 flex items-start justify-between gap-2">
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-[8px] text-zinc-500 font-semibold uppercase">address</p>
+                                          <p className="text-[9px] text-white font-medium mt-0.5 leading-relaxed">
+                                            {[vcardForm.street, vcardForm.city, vcardForm.state, vcardForm.country].filter(Boolean).join(', ')}
+                                          </p>
+                                        </div>
+                                        <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] shrink-0 mt-0.5">📍</div>
+                                      </div>
+                                    )}
+
+                                    {/* Website */}
+                                    {vcardForm.urls && vcardForm.urls.filter(u => u.url).length > 0 && (
+                                      <div className="bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800">
+                                        {vcardForm.urls.filter(u => u.url).map((u, i) => (
+                                          <div key={i} className={`px-3 py-2.5 flex items-center justify-between ${i > 0 ? 'border-t border-zinc-800' : ''}`}>
+                                            <div className="flex-1 min-w-0 pr-2">
+                                              <p className="text-[8px] text-zinc-500 font-semibold uppercase">{u.label || 'website'}</p>
+                                              <p className="text-[9px] text-[#3f5ce6] font-semibold mt-0.5 truncate">{u.url}</p>
+                                            </div>
+                                            <div className="w-6 h-6 rounded-full bg-[#3f5ce6]/10 flex items-center justify-center text-[10px] shrink-0">🌐</div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+
+                                    {/* Socials */}
+                                    {vcardForm.socials && vcardForm.socials.filter(s => s.username).length > 0 && (
+                                      <div className="bg-zinc-900 rounded-xl overflow-hidden border border-zinc-800">
+                                        {vcardForm.socials.filter(s => s.username).map((s, i) => (
+                                          <div key={i} className={`px-3 py-2.5 flex items-center justify-between ${i > 0 ? 'border-t border-zinc-800' : ''}`}>
+                                            <div>
+                                              <p className="text-[8px] text-zinc-500 font-semibold uppercase">{s.platform || 'social'}</p>
+                                              <p className="text-[9px] text-white font-semibold mt-0.5">{s.username}</p>
+                                            </div>
+                                            <div className="w-6 h-6 rounded-full bg-zinc-800 flex items-center justify-center text-[9px] font-black text-zinc-300 shrink-0">
+                                              {(s.platform || 'S').slice(0, 1).toUpperCase()}
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+
+                                    {/* Notes */}
+                                    {vcardForm.notes && (
+                                      <div className="bg-zinc-900 rounded-xl px-3 py-2.5 border border-zinc-800">
+                                        <p className="text-[8px] text-zinc-500 font-semibold uppercase mb-1">notes</p>
+                                        <p className="text-[9px] text-zinc-300 leading-relaxed line-clamp-3">{vcardForm.notes}</p>
+                                      </div>
+                                    )}
+
+                                    {/* Placeholder hint when empty */}
+                                    {!vcardForm.phones?.some(p => p.number) && !vcardForm.emails?.some(e => e.email) && !vcardForm.street && !vcardForm.urls?.some(u => u.url) && (
+                                      <div className="text-center py-4 text-zinc-600">
+                                        <p className="text-[8px] font-semibold">Fill in the form to see<br />your contact card here</p>
+                                      </div>
+                                    )}
+
+                                  </div>
+
+                                </div>
+                                {/* End Scrollable iOS Contact Page */}
+
+                              </div>
+                              {/* End Screen Viewport */}
+
+                            </div>
+                            {/* End Inner Bezel */}
+
+                          </div>
+                          {/* End Outer Titanium Band */}
+
+                        </div>
+                        {/* End Realistic iPhone Wrapper */}
+
+                      </div>
+                      {/* End sticky */}
+                    </div>
+                    {/* End Right Column */}
+
+                  </div>
+                )}
               </div>
             )}
 
