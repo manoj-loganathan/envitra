@@ -188,7 +188,7 @@ export interface SocialLink {
 
 // ─── NEW: Lead Forms ─────────────────────────────────────────────────────────
 
-export type LeadFieldType = 'text' | 'email' | 'phone' | 'textarea' | 'select' | 'checkbox';
+export type LeadFieldType = 'text' | 'email' | 'phone' | 'textarea' | 'select' | 'checkbox' | 'date';
 
 export interface LeadFormField {
   id: string; type: LeadFieldType; label: string;
@@ -199,7 +199,6 @@ export interface LeadForm {
   id: string; profile_id: string; account_id: string;
   title: string; subtitle: string | null; button_label: string; is_active: boolean;
   fields: LeadFormField[];
-  capture_name: boolean; capture_email: boolean; capture_phone: boolean;
   created_at: string; updated_at: string;
 }
 
@@ -207,9 +206,7 @@ export interface LeadForm {
 
 export interface LeadSubmission {
   id: string; form_id: string; profile_id: string; account_id: string;
-  lead_name: string | null; lead_email: string | null;
-  lead_phone: string | null; company: string | null;
-  data: Record<string, any>; status: LeadStatus; notes: string | null;
+  data: Record<string, any>; status: LeadStatus;
   tap_id: string | null; submitted_at: string; updated_at: string;
 }
 
