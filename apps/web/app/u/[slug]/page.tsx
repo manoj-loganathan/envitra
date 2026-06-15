@@ -150,12 +150,14 @@ const ProductCardCarousel = ({
   alt, 
   objectFit = 'cover',
   heightClass = 'h-full',
+  sliderClassName = '',
   style
 }: { 
   imageUrls: string[]; 
   alt: string; 
   objectFit?: 'cover' | 'contain';
   heightClass?: string;
+  sliderClassName?: string;
   style?: React.CSSProperties;
 }) => {
   const length = imageUrls.length;
@@ -281,7 +283,7 @@ const ProductCardCarousel = ({
     >
       {/* Slider Container */}
       <div 
-        className={`relative w-full overflow-hidden ${heightClass} bg-zinc-950`}
+        className={`relative w-full overflow-hidden ${heightClass} bg-zinc-950 ${sliderClassName}`}
         style={style}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
@@ -1066,16 +1068,72 @@ export default function NFCProfileLandingPage() {
 
   // --- RENDERING VARIANTS ---
 
-  // 1. Loading state spinner
+  // 1. Loading state skeleton loader
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-950 flex flex-col items-center justify-center p-4">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <div className="relative w-16 h-16">
-            <div className="absolute inset-0 rounded-full border-4 border-purple-500/20 border-t-purple-500 animate-spin" />
-            <div className="absolute inset-1 rounded-full border-4 border-indigo-500/10 border-b-indigo-500 animate-spin" style={{ animationDirection: 'reverse' }} />
+      <div className="min-h-[100dvh] bg-zinc-950 text-zinc-100 flex flex-col items-center pt-0 sm:pt-8 pb-0 sm:pb-8 px-0 sm:px-4 relative overflow-x-hidden select-none">
+        
+        {/* Background radial glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[120px] pointer-events-none -z-10" />
+        
+        {/* Immersive profile box container skeleton */}
+        <div className="w-full max-w-md bg-zinc-950 border-0 sm:border border-zinc-900 rounded-none sm:rounded-3xl overflow-hidden shadow-2xl space-y-6 pb-8 animate-fadeIn">
+          
+          {/* Banner Hero image placeholder */}
+          <div className="relative w-full h-[380px] sm:h-[420px] bg-zinc-900 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-tr from-zinc-950 via-zinc-900/50 to-zinc-950 animate-pulse" />
+            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent" />
+            
+            {/* details overlay */}
+            <div className="absolute bottom-6 inset-x-4 space-y-3">
+              <div className="h-8 w-2/3 bg-zinc-800/80 rounded-2xl animate-pulse" />
+              <div className="h-4 w-1/3 bg-zinc-800/60 rounded-xl animate-pulse" />
+              <div className="h-3.5 w-5/6 bg-zinc-800/40 rounded-xl animate-pulse" />
+              <div className="h-3.5 w-4/6 bg-zinc-800/40 rounded-xl animate-pulse" />
+            </div>
           </div>
-          <p className="text-sm font-semibold text-slate-400 uppercase tracking-widest animate-pulse font-poppins">envitra</p>
+
+          {/* Action Row */}
+          <div className="flex items-center gap-2 px-4 sm:px-6 w-full justify-between">
+            <div className="h-11 flex-1 bg-zinc-900 rounded-full animate-pulse" />
+            <div className="flex gap-2">
+              <div className="w-11 h-11 rounded-full bg-zinc-900 animate-pulse" />
+              <div className="w-11 h-11 rounded-full bg-zinc-900 animate-pulse" />
+              <div className="w-11 h-11 rounded-full bg-zinc-900 animate-pulse" />
+              <div className="w-11 h-11 rounded-full bg-zinc-900 animate-pulse" />
+            </div>
+          </div>
+
+          {/* Navigation tabs */}
+          <div className="px-4 sm:px-6">
+            <div className="flex items-center gap-2 p-1 bg-zinc-900/40 border border-zinc-900/60 rounded-2xl w-full h-[46px] px-2">
+              <div className="h-[38px] flex-1 bg-zinc-800/50 rounded-xl animate-pulse" />
+              <div className="h-[38px] flex-1 bg-zinc-800/20 rounded-xl animate-pulse" />
+              <div className="h-[38px] flex-1 bg-zinc-800/20 rounded-xl animate-pulse" />
+            </div>
+          </div>
+
+          {/* Social Profiles Grid */}
+          <div className="px-4 sm:px-6 space-y-4 pt-2">
+            <div className="grid grid-cols-4 gap-4 justify-items-center py-2">
+              <div className="w-12 h-12 rounded-2xl bg-zinc-900/60 animate-pulse" />
+              <div className="w-12 h-12 rounded-2xl bg-zinc-900/60 animate-pulse" />
+              <div className="w-12 h-12 rounded-2xl bg-zinc-900/60 animate-pulse" />
+              <div className="w-12 h-12 rounded-2xl bg-zinc-900/60 animate-pulse" />
+              <div className="w-12 h-12 rounded-2xl bg-zinc-900/60 animate-pulse" />
+              <div className="w-12 h-12 rounded-2xl bg-zinc-900/60 animate-pulse" />
+              <div className="w-12 h-12 rounded-2xl bg-zinc-900/60 animate-pulse" />
+              <div className="w-12 h-12 rounded-2xl bg-zinc-900/60 animate-pulse" />
+            </div>
+          </div>
+
+          {/* Lead capture form */}
+          <div className="px-4 sm:px-6 space-y-3.5 pt-4 border-t border-zinc-900/60">
+            <div className="h-4 w-1/4 bg-zinc-900 rounded-lg animate-pulse" />
+            <div className="h-20 bg-zinc-900/40 rounded-2xl animate-pulse" />
+            <div className="h-11 bg-zinc-900/50 rounded-xl animate-pulse" />
+          </div>
+
         </div>
       </div>
     )
@@ -1316,41 +1374,41 @@ export default function NFCProfileLandingPage() {
             <div className="flex items-center gap-1 p-1 bg-zinc-900/60 border border-zinc-800 rounded-2xl w-full">
               <button
                 onClick={() => setActiveTab('socials')}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-[11px] sm:text-xs font-black transition-all cursor-pointer ${
                   activeTab === 'socials'
                     ? 'bg-zinc-800 text-white shadow-sm'
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                <Globe size={16} className="shrink-0" />
-                <span className="hidden sm:inline">Social Profiles</span>
+                <Globe size={14} className="shrink-0" />
+                <span>Socials</span>
               </button>
 
               {products.length > 0 && (
                 <button
                   onClick={() => setActiveTab('products')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-[11px] sm:text-xs font-black transition-all cursor-pointer ${
                     activeTab === 'products'
                       ? 'bg-zinc-800 text-white shadow-sm'
                       : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
-                  <ShoppingCart size={16} className="shrink-0" />
-                  <span className="hidden sm:inline">Products</span>
+                  <ShoppingCart size={14} className="shrink-0" />
+                  <span>Products</span>
                 </button>
               )}
 
               {feeds.length > 0 && (
                 <button
                   onClick={() => setActiveTab('feeds')}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-xl text-[11px] sm:text-xs font-black transition-all cursor-pointer ${
                     activeTab === 'feeds'
                       ? 'bg-zinc-800 text-white shadow-sm'
                       : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
-                  <Grid size={16} className="shrink-0" />
-                  <span className="hidden sm:inline">Feeds</span>
+                  <Grid size={14} className="shrink-0" />
+                  <span>Feeds</span>
                 </button>
               )}
             </div>
@@ -1405,9 +1463,12 @@ export default function NFCProfileLandingPage() {
                   >
                     {/* Image Carousel / Banner Header */}
                     {hasImages ? (
-                      <div className="relative bg-zinc-950 border-b border-zinc-800/60">
-                        <ProductCardCarousel imageUrls={p.image_urls} alt={p.name} heightClass="h-48" />
-                      </div>
+                      <ProductCardCarousel 
+                        imageUrls={p.image_urls} 
+                        alt={p.name} 
+                        heightClass="h-48" 
+                        sliderClassName="border-b border-zinc-800/60"
+                      />
                     ) : p.image_url ? (
                       <div className="h-48 relative overflow-hidden bg-zinc-950 border-b border-zinc-800/60">
                         <img 
@@ -1651,9 +1712,9 @@ export default function NFCProfileLandingPage() {
                         ? feed.media_urls
                         : [feed.media_url]
 
-                      return (
-                        <div className="rounded-xl overflow-hidden border border-zinc-800/40 bg-zinc-950">
-                          {urls.length === 1 ? (
+                      if (urls.length === 1) {
+                        return (
+                          <div className="rounded-xl overflow-hidden border border-zinc-800/40 bg-zinc-950">
                             <img
                               src={urls[0]}
                               alt="Feed Post"
@@ -1666,35 +1727,38 @@ export default function NFCProfileLandingPage() {
                               }}
                               className="w-full h-auto max-h-[380px] block object-contain mx-auto"
                             />
-                          ) : (
-                            <>
-                              <img
-                                src={urls[0]}
-                                alt="invisible loader"
-                                className="hidden"
-                                onLoad={(e) => {
-                                  const { naturalWidth, naturalHeight } = e.currentTarget;
-                                  setImageDimensions(prev => ({
-                                    ...prev,
-                                    [feed.id]: { width: naturalWidth, height: naturalHeight }
-                                  }));
-                                }}
-                              />
-                              <ProductCardCarousel
-                                imageUrls={urls}
-                                alt="Feed Post"
-                                objectFit="contain"
-                                heightClass=""
-                                style={{
-                                  aspectRatio: imageDimensions[feed.id]
-                                    ? `${imageDimensions[feed.id].width} / ${imageDimensions[feed.id].height}`
-                                    : '16/9',
-                                  maxHeight: '380px'
-                                }}
-                              />
-                            </>
-                          )}
-                        </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <>
+                          <img
+                            src={urls[0]}
+                            alt="invisible loader"
+                            className="hidden"
+                            onLoad={(e) => {
+                              const { naturalWidth, naturalHeight } = e.currentTarget;
+                              setImageDimensions(prev => ({
+                                ...prev,
+                                [feed.id]: { width: naturalWidth, height: naturalHeight }
+                              }));
+                            }}
+                          />
+                          <ProductCardCarousel
+                            imageUrls={urls}
+                            alt="Feed Post"
+                            objectFit="contain"
+                            heightClass=""
+                            sliderClassName="rounded-xl border border-zinc-800/40"
+                            style={{
+                              aspectRatio: imageDimensions[feed.id]
+                                ? `${imageDimensions[feed.id].width} / ${imageDimensions[feed.id].height}`
+                                : '16/9',
+                              maxHeight: '380px'
+                            }}
+                          />
+                        </>
                       );
                     })()}
 
@@ -1754,10 +1818,9 @@ export default function NFCProfileLandingPage() {
           </div>
         )}
 
-        {/* PRO FEATURE: Lead Capture Form - rendered at the bottom of all tabs (except products tab) */}
-        {isPro && leadForm && activeTab !== 'products' && (
-          <div id="leads-section" className="px-4 sm:px-6 space-y-3 pt-2 scroll-mt-6">
-            <div className="border-t border-zinc-800/60 pt-4" />
+        {/* PRO FEATURE: Lead Capture Form - rendered at the bottom of all tabs (except products and feeds tabs) */}
+        {isPro && leadForm && activeTab !== 'products' && activeTab !== 'feeds' && (
+          <div id="leads-section" className="px-4 sm:px-6 space-y-3 pt-6 scroll-mt-6">
             <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">{leadForm.title || 'Get in touch'}</h3>
             {leadForm.subtitle && <p className="text-[10px] text-zinc-400 pl-1 -mt-1 leading-normal">{leadForm.subtitle}</p>}
             
@@ -1835,7 +1898,7 @@ export default function NFCProfileLandingPage() {
         )}
 
         {/* New Footer Design inside the card */}
-        <div className="relative overflow-hidden pt-6 pb-0 border-t border-zinc-900/60 mt-8">
+        <div className="relative overflow-hidden pt-6 pb-0 mt-8">
           <div className="flex items-center justify-between px-4 sm:px-6 relative z-10">
             <div className="text-left">
               <div className="flex items-center gap-1.5">
