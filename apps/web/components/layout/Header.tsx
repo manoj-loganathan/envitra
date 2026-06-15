@@ -24,7 +24,7 @@ export function Header() {
   const supabase = createClient()
 
   // Must be after all hooks — no early return before hooks
-  const isDashboard = pathname && pathname.startsWith('/dashboard')
+  const isDashboard = pathname && (pathname.startsWith('/dashboard') || pathname.startsWith('/u/'))
 
   useEffect(() => {
     setItemCount(storeItemCount)

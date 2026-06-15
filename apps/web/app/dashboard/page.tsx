@@ -1544,6 +1544,11 @@ function UserDashboardContent() {
   const [allAccountFeeds, setAllAccountFeeds] = useState<any[]>([])
   const [allAccountFeedsLoading, setAllAccountFeedsLoading] = useState(false)
 
+  // Analytics states
+  const [analyticsRange, setAnalyticsRange] = useState<'7d' | '30d' | '90d'>('30d')
+  const [analyticsData, setAnalyticsData] = useState<any>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+
   const isAllCards = activeCard?.id === 'all'
 
   // Trigger new lead form from product form creation redirection
@@ -1911,6 +1916,13 @@ function UserDashboardContent() {
       fetchAllAccountFeeds()
     }
   }, [activeProfile?.id, user?.id])
+
+  // Load analytics when range, tab, active card, or active profile changes
+  useEffect(() => {
+    if (activeTab === 'analytics' && user?.id) {
+      fetchAnalyticsData()
+    }
+  }, [activeTab, analyticsRange, activeCard?.id, activeProfile?.id, user?.id])
 
   const handleAddPhone = () => {
     setVcardForm(prev => ({
@@ -3384,6 +3396,356 @@ function UserDashboardContent() {
       console.error('Failed to fetch all account feeds:', err)
     } finally {
       setAllAccountFeedsLoading(false)
+    }
+  }
+
+  const fetchAnalyticsData = async () => {
+    if (!user?.id) return
+    setAnalyticsLoading(true)
+    try {
+      const days = analyticsRange === '7d' ? 7 : analyticsRange === '90d' ? 90 : 30
+      const startDate = new Date()
+      startDate.setDate(startDate.getDate() - days)
+      const startDateISO = startDate.toISOString()
+
+      // 1. Fetch taps
+      let tapsQuery = supabase
+        .from('card_taps')
+        .select('*')
+        .gte('tapped_at', startDateISO)
+
+      if (isAllCards) {
+        const cardIds = cards.map((c: any) => c.id).filter(Boolean)
+        if (cardIds.length > 0) {
+          tapsQuery = tapsQuery.in('card_id', cardIds)
+        } else {
+          tapsQuery = tapsQuery.eq('card_id', '00000000-0000-0000-0000-000000000000')
+        }
+      } else {
+        tapsQuery = tapsQuery.eq('card_id', activeCard.id)
+        if (activeProfile?.id) {
+          tapsQuery = tapsQuery.eq('profile_id', activeProfile.id)
+        }
+      }
+
+      const { data: tapsData, error: tapsErr } = await tapsQuery
+      if (tapsErr) throw tapsErr
+
+      // 2. Fetch link clicks (raw log records)
+      let clicksQuery = supabase
+        .from('link_clicks')
+        .select('link_id, profile_id, clicked_at')
+        .gte('clicked_at', startDateISO)
+
+      const profileIds = isAllCards
+        ? cardProfiles.map((p: any) => p.id).filter(Boolean)
+        : (activeProfile?.id ? [activeProfile.id] : cardProfiles.filter((p: any) => p.card_id === activeCard.id).map((p: any) => p.id))
+
+      if (profileIds.length > 0) {
+        clicksQuery = clicksQuery.in('profile_id', profileIds)
+      } else {
+        clicksQuery = clicksQuery.eq('profile_id', '00000000-0000-0000-0000-000000000000')
+      }
+
+      const { data: clicksData, error: clicksErr } = await clicksQuery
+      if (clicksErr) throw clicksErr
+
+      // 3. Fetch lead submissions
+      let leadsQuery = supabase
+        .from('lead_submissions')
+        .select('*')
+        .gte('submitted_at', startDateISO)
+
+      if (profileIds.length > 0) {
+        leadsQuery = leadsQuery.in('profile_id', profileIds)
+      } else {
+        leadsQuery = leadsQuery.eq('profile_id', '00000000-0000-0000-0000-000000000000')
+      }
+
+      const { data: leadsData, error: leadsErr } = await leadsQuery
+      if (leadsErr) throw leadsErr
+
+      // 4. Fetch social links (to read platforms and custom labels/URLs)
+      let linksQuery = supabase
+        .from('social_links')
+        .select('*')
+
+      if (profileIds.length > 0) {
+        linksQuery = linksQuery.in('profile_id', profileIds)
+      } else {
+        linksQuery = linksQuery.eq('profile_id', '00000000-0000-0000-0000-000000000000')
+      }
+      const { data: allLinksData } = await linksQuery
+
+      // 5. Fetch profile products
+      let productsQuery = supabase
+        .from('profile_products')
+        .select('*')
+
+      if (profileIds.length > 0) {
+        productsQuery = productsQuery.in('profile_id', profileIds)
+      } else {
+        productsQuery = productsQuery.eq('profile_id', '00000000-0000-0000-0000-000000000000')
+      }
+      const { data: allProductsData } = await productsQuery
+
+      // Check if we have real taps. If 0, generate rich simulated activity data.
+      if (!tapsData || tapsData.length === 0) {
+        // Fallback simulated data generator
+        const timeline = []
+        // Seed based on active range
+        for (let i = days - 1; i >= 0; i--) {
+          const d = new Date()
+          d.setDate(d.getDate() - i)
+          const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          
+          // Generate a smooth pattern with weekends having fewer taps
+          const dayOfWeek = d.getDay()
+          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+          const baseMultiplier = isWeekend ? 0.4 : 1.0
+          
+          const taps = Math.floor((Math.random() * 15 + 8) * baseMultiplier)
+          const clicks = Math.floor((Math.random() * 8 + 3) * baseMultiplier)
+          const leads = Math.random() > 0.75 ? Math.floor(Math.random() * 2 + 1) : 0
+
+          timeline.push({ date: dateStr, taps, clicks, leads })
+        }
+
+        const totalSimTaps = timeline.reduce((sum, item) => sum + item.taps, 0)
+        const totalSimClicks = timeline.reduce((sum, item) => sum + item.clicks, 0)
+        const totalSimLeads = timeline.reduce((sum, item) => sum + item.leads, 0)
+
+        const osList = [
+          { label: 'iOS / Safari', count: Math.round(totalSimTaps * 0.54), pct: 54, color: '#3f5ce6' },
+          { label: 'Android / Chrome', count: Math.round(totalSimTaps * 0.32), pct: 32, color: '#10b981' },
+          { label: 'Windows', count: Math.round(totalSimTaps * 0.10), pct: 10, color: '#8b5cf6' },
+          { label: 'macOS', count: Math.round(totalSimTaps * 0.04), pct: 4, color: '#f59e0b' },
+        ]
+
+        const deviceList = [
+          { label: 'Mobile', count: Math.round(totalSimTaps * 0.78), pct: 78, color: '#3f5ce6' },
+          { label: 'Desktop', count: Math.round(totalSimTaps * 0.16), pct: 16, color: '#10b981' },
+          { label: 'Tablet', count: Math.round(totalSimTaps * 0.06), pct: 6, color: '#f59e0b' },
+        ]
+
+        const browserList = [
+          { label: 'Safari', count: Math.round(totalSimTaps * 0.51), pct: 51, color: '#3f5ce6' },
+          { label: 'Chrome', count: Math.round(totalSimTaps * 0.35), pct: 35, color: '#10b981' },
+          { label: 'Firefox', count: Math.round(totalSimTaps * 0.09), pct: 9, color: '#8b5cf6' },
+          { label: 'Edge', count: Math.round(totalSimTaps * 0.05), pct: 5, color: '#f59e0b' },
+        ]
+
+        const locationList = [
+          { city: 'Mumbai', country: 'India', count: Math.round(totalSimTaps * 0.38), pct: 38 },
+          { city: 'Bengaluru', country: 'India', count: Math.round(totalSimTaps * 0.28), pct: 28 },
+          { city: 'New Delhi', country: 'India', count: Math.round(totalSimTaps * 0.18), pct: 18 },
+          { city: 'Chennai', country: 'India', count: Math.round(totalSimTaps * 0.11), pct: 11 },
+          { city: 'Pune', country: 'India', count: Math.round(totalSimTaps * 0.05), pct: 5 },
+        ]
+
+        const linksList = [
+          { platform: 'Instagram', label: 'My Instagram', url: '#', clicks: Math.round(totalSimClicks * 0.42), pct: 42 },
+          { platform: 'LinkedIn', label: 'Professional Profile', url: '#', clicks: Math.round(totalSimClicks * 0.28), pct: 28 },
+          { platform: 'WhatsApp', label: 'Chat with Us', url: '#', clicks: Math.round(totalSimClicks * 0.18), pct: 18 },
+          { platform: 'UPI / GPay', label: 'Make Payment', url: '#', clicks: Math.round(totalSimClicks * 0.09), pct: 9 },
+          { platform: 'Website', label: 'Company Portal', url: '#', clicks: Math.round(totalSimClicks * 0.03), pct: 3 },
+        ]
+
+        const productsList = [
+          { name: 'NFC Metal Black Card', views: Math.round(totalSimTaps * 0.65), clicks: Math.round(totalSimClicks * 0.55), ctr: Math.round((totalSimClicks * 0.55) / Math.max(1, totalSimTaps * 0.65) * 100) },
+          { name: 'NFC Classic Wood Card', views: Math.round(totalSimTaps * 0.42), clicks: Math.round(totalSimClicks * 0.32), ctr: Math.round((totalSimClicks * 0.32) / Math.max(1, totalSimTaps * 0.42) * 100) },
+          { name: 'Custom Brand Identity Pack', views: Math.round(totalSimTaps * 0.25), clicks: Math.round(totalSimClicks * 0.15), ctr: Math.round((totalSimClicks * 0.15) / Math.max(1, totalSimTaps * 0.25) * 100) },
+        ]
+
+        setAnalyticsData({
+          isSimulated: true,
+          summary: {
+            totalTaps: totalSimTaps,
+            uniqueVisitors: Math.round(totalSimTaps * 0.72),
+            linkClicks: totalSimClicks,
+            leadsCaptured: totalSimLeads,
+            conversionRate: totalSimTaps > 0 ? Math.round((totalSimLeads / totalSimTaps) * 100) : 0,
+            productViews: Math.round(totalSimTaps * 1.3),
+            productClicks: Math.round(totalSimClicks * 1.0),
+          },
+          timeline,
+          os: osList,
+          devices: deviceList,
+          browsers: browserList,
+          locations: locationList,
+          topLinks: linksList,
+          topProducts: productsList,
+        })
+      } else {
+        // Process real database analytics
+        const timelineMap: Record<string, { taps: number, clicks: number, leads: number }> = {}
+        for (let i = days - 1; i >= 0; i--) {
+          const d = new Date()
+          d.setDate(d.getDate() - i)
+          const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          timelineMap[dateStr] = { taps: 0, clicks: 0, leads: 0 }
+        }
+
+        tapsData.forEach((t: any) => {
+          const dateStr = new Date(t.tapped_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          if (timelineMap[dateStr]) {
+            timelineMap[dateStr].taps++
+          }
+        })
+
+        clicksData.forEach((c: any) => {
+          const dateStr = new Date(c.clicked_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          if (timelineMap[dateStr]) {
+            timelineMap[dateStr].clicks++
+          }
+        })
+
+        leadsData.forEach((l: any) => {
+          const dateStr = new Date(l.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+          if (timelineMap[dateStr]) {
+            timelineMap[dateStr].leads++
+          }
+        })
+
+        const timeline = Object.entries(timelineMap).map(([date, val]) => ({
+          date,
+          taps: val.taps,
+          clicks: val.clicks,
+          leads: val.leads,
+        }))
+
+        const totalTapsCount = tapsData.length
+        const totalClicksCount = clicksData.length + (allLinksData || []).reduce((sum: number, l: any) => sum + (l.click_count || 0), 0)
+        const totalLeadsCount = leadsData.length
+        const uniqueVisitorsCount = new Set(tapsData.map((t: any) => t.ip_address).filter(Boolean)).size || Math.round(totalTapsCount * 0.75)
+
+        // OS aggregates
+        const osMap: Record<string, number> = {}
+        tapsData.forEach((t: any) => {
+          const key = t.os || 'Other'
+          osMap[key] = (osMap[key] || 0) + 1
+        })
+        const osColors: Record<string, string> = {
+          'iOS': '#3f5ce6', 'Android': '#10b981', 'Windows': '#8b5cf6', 'macOS': '#f59e0b', 'Other': '#6b7280'
+        }
+        const osList = Object.entries(osMap).map(([label, count]) => ({
+          label,
+          count,
+          pct: totalTapsCount > 0 ? Math.round((count / totalTapsCount) * 100) : 0,
+          color: osColors[label] || '#6b7280'
+        })).sort((a, b) => b.count - a.count)
+
+        // Device aggregates
+        const deviceMap: Record<string, number> = {}
+        tapsData.forEach((t: any) => {
+          const key = t.device_type ? (t.device_type.charAt(0).toUpperCase() + t.device_type.slice(1)) : 'Other'
+          deviceMap[key] = (deviceMap[key] || 0) + 1
+        })
+        const deviceColors: Record<string, string> = {
+          'Mobile': '#3f5ce6', 'Desktop': '#10b981', 'Tablet': '#f59e0b', 'Other': '#6b7280'
+        }
+        const deviceList = Object.entries(deviceMap).map(([label, count]) => ({
+          label,
+          count,
+          pct: totalTapsCount > 0 ? Math.round((count / totalTapsCount) * 100) : 0,
+          color: deviceColors[label] || '#6b7280'
+        })).sort((a, b) => b.count - a.count)
+
+        // Browser aggregates
+        const browserMap: Record<string, number> = {}
+        tapsData.forEach((t: any) => {
+          const key = t.browser || 'Other'
+          browserMap[key] = (browserMap[key] || 0) + 1
+        })
+        const browserColors: Record<string, string> = {
+          'Safari': '#3f5ce6', 'Chrome': '#10b981', 'Firefox': '#8b5cf6', 'Edge': '#f59e0b', 'Other': '#6b7280'
+        }
+        const browserList = Object.entries(browserMap).map(([label, count]) => ({
+          label,
+          count,
+          pct: totalTapsCount > 0 ? Math.round((count / totalTapsCount) * 100) : 0,
+          color: browserColors[label] || '#6b7280'
+        })).sort((a, b) => b.count - a.count)
+
+        // Geographic aggregates
+        const locMap: Record<string, { city: string, country: string, count: number }> = {}
+        tapsData.forEach((t: any) => {
+          if (!t.city && !t.country) return
+          const key = `${t.city || 'Unknown'}, ${t.country || 'Unknown'}`
+          if (!locMap[key]) {
+            locMap[key] = { city: t.city || 'Unknown', country: t.country || 'Unknown', count: 0 }
+          }
+          locMap[key].count++
+        })
+        const locationList = Object.values(locMap).map((loc) => ({
+          city: loc.city,
+          country: loc.country,
+          count: loc.count,
+          pct: totalTapsCount > 0 ? Math.round((loc.count / totalTapsCount) * 100) : 0
+        })).sort((a, b) => b.count - a.count).slice(0, 5)
+
+        // Link clicks aggregates
+        const linkMap: Record<string, any> = {}
+        clicksData.forEach((c: any) => {
+          linkMap[c.link_id] = (linkMap[c.link_id] || 0) + 1
+        })
+
+        const linksList = (allLinksData || []).map((link: any) => {
+          const clicks = (link.click_count || 0) + (linkMap[link.id] || 0)
+          return {
+            platform: link.platform,
+            label: link.label || link.platform,
+            url: link.url,
+            clicks,
+            pct: 0
+          }
+        })
+        const maxClicks = Math.max(...linksList.map(l => l.clicks), 1)
+        linksList.forEach(l => {
+          l.pct = Math.round((l.clicks / maxClicks) * 100)
+        })
+        linksList.sort((a, b) => b.clicks - a.clicks)
+
+        // Top products aggregates
+        const productsList = (allProductsData || []).map((prod: any) => {
+          const views = prod.view_count || 0
+          const clicks = prod.click_count || 0
+          const ctr = views > 0 ? Math.round((clicks / views) * 100) : 0
+          return {
+            name: prod.name,
+            views,
+            clicks,
+            ctr
+          }
+        }).sort((a, b) => b.clicks - a.clicks).slice(0, 5)
+
+        const totalProductViews = (allProductsData || []).reduce((sum: number, p: any) => sum + (p.view_count || 0), 0)
+        const totalProductClicks = (allProductsData || []).reduce((sum: number, p: any) => sum + (p.click_count || 0), 0)
+
+        setAnalyticsData({
+          isSimulated: false,
+          summary: {
+            totalTaps: totalTapsCount,
+            uniqueVisitors: uniqueVisitorsCount,
+            linkClicks: totalClicksCount,
+            leadsCaptured: totalLeadsCount,
+            conversionRate: totalTapsCount > 0 ? Math.round((totalLeadsCount / totalTapsCount) * 100) : 0,
+            productViews: totalProductViews,
+            productClicks: totalProductClicks,
+          },
+          timeline,
+          os: osList,
+          devices: deviceList,
+          browsers: browserList,
+          locations: locationList,
+          topLinks: linksList.slice(0, 5),
+          topProducts: productsList,
+        })
+      }
+    } catch (err) {
+      console.error('Failed to load analytics metrics:', err)
+    } finally {
+      setAnalyticsLoading(false)
     }
   }
 
@@ -11393,140 +11755,298 @@ function UserDashboardContent() {
               <div className="space-y-6 animate-fadeIn text-left">
                 <div className="flex justify-between items-center flex-wrap gap-3">
                   <div className="hidden sm:block">
-                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Analytics</h3>
-                    <p className="text-xs text-muted-foreground">
+                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
+                      Analytics 
+                      {analyticsData && (
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold border uppercase tracking-wider ${
+                          analyticsData.isSimulated 
+                            ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' 
+                            : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${analyticsData.isSimulated ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 animate-ping'}`} />
+                          {analyticsData.isSimulated ? 'Demo Data' : 'Live Data'}
+                        </span>
+                      )}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       {isAllCards
-                        ? 'Aggregated tap data across all cards'
+                        ? 'Aggregated activity data across all smart cards'
                         : `Card: ${activeCard?.slug}${activeProfile ? ` · Profile: ${activeProfile.profile_name}` : ''}`}
                     </p>
                   </div>
                   {/* Date range */}
                   <div className="flex gap-1">
-                    {['7d', '30d', '90d'].map((r) => (
-                      <button key={r} className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${r === '30d' ? 'bg-[#3f5ce6] text-white' : 'bg-card border border-border text-muted-foreground hover:text-foreground'}`}>
+                    {(['7d', '30d', '90d'] as const).map((r) => (
+                      <button 
+                        key={r} 
+                        onClick={() => setAnalyticsRange(r)}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                          analyticsRange === r 
+                            ? 'bg-[#3f5ce6] text-white shadow-sm' 
+                            : 'bg-card border border-border text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
                         {r}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Stat cards */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  {[
-                    { label: 'Total Taps', value: isAllCards ? cards.reduce((s: number, c: any) => s + (c.tap_count || 0), 0) : (activeCard?.tap_count || 0), trend: '+12%', color: '#3f5ce6' },
-                    { label: 'Unique Visitors', value: 28, trend: '+8%', color: '#10b981' },
-                    { label: 'Link Clicks', value: 142, trend: '+19%', color: '#f59e0b' },
-                    { label: 'Leads Captured', value: leads.length, trend: '+5%', color: '#8b5cf6' },
-                  ].map((s) => (
-                    <div key={s.label} className="bg-card border border-border rounded-xl p-5 space-y-2">
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{s.label}</p>
-                      <div className="flex items-end justify-between">
-                        <span className="text-2xl font-black text-foreground">{s.value}</span>
-                        <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 rounded px-1.5 py-0.5">{s.trend}</span>
-                      </div>
-                      <div className="flex items-end gap-0.5 h-8">
-                        {[40, 60, 35, 80, 55, 90, 70].map((h, i) => (
-                          <div key={i} className="flex-1 rounded-sm opacity-70" style={{ height: `${h}%`, backgroundColor: s.color }} />
-                        ))}
-                      </div>
+                {analyticsLoading && !analyticsData ? (
+                  <div className="flex flex-col items-center justify-center py-20 bg-card rounded-2xl border border-border space-y-4">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#3f5ce6]" />
+                    <p className="text-xs text-muted-foreground font-semibold">Loading real-time analytics...</p>
+                  </div>
+                ) : !analyticsData ? (
+                  <div className="text-center py-20 bg-card rounded-2xl border border-dashed border-border space-y-4 max-w-lg mx-auto p-6">
+                    <div className="w-12 h-12 rounded-full bg-[#3f5ce6]/10 text-[#3f5ce6] flex items-center justify-center mx-auto">
+                      <BarChart3 size={20} />
                     </div>
-                  ))}
-                </div>
-
-                {/* Tap timeline chart */}
-                <div className="bg-card border border-border rounded-xl p-6 space-y-5">
-                  <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Tap Timeline — Last 30 Days</h4>
-                  <div className="h-40 flex items-end gap-1.5 border-b border-border pb-2">
-                    {Array.from({ length: 30 }).map((_, i) => {
-                      const h = Math.floor(Math.random() * 80 + 5)
-                      const isToday = i === 29
-                      return (
-                        <div key={i} className="flex-1 group relative cursor-pointer">
-                          <div
-                            className={`w-full rounded-t transition-all group-hover:opacity-100 ${isToday ? 'opacity-100' : 'opacity-50'}`}
-                            style={{ height: `${h}%`, backgroundColor: '#3f5ce6' }}
-                          />
-                        </div>
-                      )
-                    })}
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-foreground">No Analytics Loaded</h4>
+                      <p className="text-xs text-muted-foreground">
+                        Failed to fetch analytics metrics or setup timeline. Please refresh the dashboard.
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-[9px] text-muted-foreground font-bold uppercase">
-                    <span>May 5</span><span>May 15</span><span>May 25</span><span>Jun 4</span>
-                  </div>
-                </div>
-
-                {/* Device + Geo row */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                  {/* Device breakdown */}
-                  <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-                    <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Device Breakdown</h4>
-                    {[
-                      { label: 'Mobile', pct: 74, color: '#3f5ce6' },
-                      { label: 'Desktop', pct: 19, color: '#10b981' },
-                      { label: 'Tablet', pct: 7, color: '#f59e0b' },
-                    ].map((d) => (
-                      <div key={d.label} className="space-y-1.5">
-                        <div className="flex justify-between text-xs">
-                          <span className="font-semibold text-foreground">{d.label}</span>
-                          <span className="font-bold" style={{ color: d.color }}>{d.pct}%</span>
+                ) : (
+                  <>
+                    {/* Stat cards */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      {[
+                        { label: 'Total Taps', value: analyticsData.summary.totalTaps, trend: '+12%', color: '#3f5ce6', desc: 'NFC card tap scans' },
+                        { label: 'Unique Visitors', value: analyticsData.summary.uniqueVisitors, trend: '+8%', color: '#10b981', desc: 'Distinct IP addresses' },
+                        { label: 'Link Clicks', value: analyticsData.summary.linkClicks, trend: '+19%', color: '#f59e0b', desc: 'Social profile redirects' },
+                        { label: 'Leads Captured', value: analyticsData.summary.leadsCaptured, trend: '+5%', color: '#8b5cf6', desc: 'Lead form entries' },
+                      ].map((s) => (
+                        <div key={s.label} className="bg-card border border-border rounded-xl p-5 space-y-2 flex flex-col justify-between">
+                          <div>
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{s.label}</p>
+                            <span className="text-2xl font-black text-foreground block mt-1 leading-none">{s.value}</span>
+                          </div>
+                          
+                          <div className="space-y-2 pt-2">
+                            <div className="flex items-end justify-between">
+                              <span className="text-[9px] text-muted-foreground">{s.desc}</span>
+                              <span className="text-[9px] font-bold text-emerald-500 bg-emerald-500/10 rounded px-1.5 py-0.5">{s.trend}</span>
+                            </div>
+                            <div className="flex items-end gap-0.5 h-6">
+                              {[35, 60, 45, 80, 55, 90, 70].map((h, i) => (
+                                <div key={i} className="flex-1 rounded-sm opacity-70" style={{ height: `${h}%`, backgroundColor: s.color }} />
+                              ))}
+                            </div>
+                          </div>
                         </div>
-                        <div className="h-2 rounded-full bg-muted overflow-hidden">
-                          <div className="h-full rounded-full transition-all" style={{ width: `${d.pct}%`, backgroundColor: d.color }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
 
-                  {/* OS breakdown */}
-                  <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">OS & Platform</h4>
-                      {!(profile?.plan === 'pro' || profile?.plan === 'business') && (
-                        <span className="text-[9px] font-bold text-amber-500 bg-amber-500/10 rounded px-1.5 py-0.5 border border-amber-500/20 flex items-center gap-1">
-                          <Lock size={9} /> PRO
+                    {/* Tap timeline chart */}
+                    <div className="bg-card border border-border rounded-xl p-6 space-y-5">
+                      <div className="flex justify-between items-center">
+                        <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
+                          Tap Timeline — Last {analyticsRange === '7d' ? '7' : analyticsRange === '90d' ? '90' : '30'} Days
+                        </h4>
+                        <span className="text-[10px] font-medium text-muted-foreground">
+                          Hover bars to view details
                         </span>
-                      )}
+                      </div>
+                      <div className="h-40 flex items-end gap-1 sm:gap-1.5 border-b border-border pb-2 relative">
+                        {analyticsData.timeline.map((day: any, i: number) => {
+                          const maxTaps = Math.max(...analyticsData.timeline.map((d: any) => d.taps), 1)
+                          const hPct = Math.max(5, Math.min(100, (day.taps / maxTaps) * 100))
+                          const isLast = i === analyticsData.timeline.length - 1
+                          return (
+                            <div key={i} className="flex-1 group relative cursor-pointer h-full flex flex-col justify-end">
+                              {/* Tooltip */}
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-popover border border-border rounded-lg shadow-xl p-2.5 text-[10px] font-semibold text-popover-foreground opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 z-20 whitespace-nowrap min-w-[120px]">
+                                <p className="border-b border-border pb-1 mb-1 font-bold text-foreground">{day.date}</p>
+                                <div className="flex justify-between gap-4 mt-0.5">
+                                  <span className="text-muted-foreground flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#3f5ce6]" /> Taps:</span>
+                                  <span className="font-extrabold text-foreground">{day.taps}</span>
+                                </div>
+                                <div className="flex justify-between gap-4 mt-0.5">
+                                  <span className="text-muted-foreground flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#f59e0b]" /> Clicks:</span>
+                                  <span className="font-extrabold text-foreground">{day.clicks}</span>
+                                </div>
+                                <div className="flex justify-between gap-4 mt-0.5">
+                                  <span className="text-muted-foreground flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-[#8b5cf6]" /> Leads:</span>
+                                  <span className="font-extrabold text-foreground">{day.leads}</span>
+                                </div>
+                              </div>
+                              {/* Bar */}
+                              <div
+                                className={`w-full rounded-t transition-all group-hover:opacity-100 group-hover:scale-y-105 duration-150 ${isLast ? 'opacity-100' : 'opacity-65'}`}
+                                style={{ height: `${hPct}%`, backgroundColor: '#3f5ce6' }}
+                              />
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <div className="flex justify-between text-[9px] text-muted-foreground font-bold uppercase">
+                        <span>{analyticsData.timeline[0]?.date}</span>
+                        <span>{analyticsData.timeline[Math.floor(analyticsData.timeline.length / 2)]?.date}</span>
+                        <span>{analyticsData.timeline[analyticsData.timeline.length - 1]?.date}</span>
+                      </div>
                     </div>
-                    {[
-                      { label: 'iOS / Safari', pct: 51, color: '#3f5ce6' },
-                      { label: 'Android / Chrome', pct: 35, color: '#10b981' },
-                      { label: 'Windows', pct: 10, color: '#8b5cf6' },
-                      { label: 'macOS', pct: 4, color: '#f59e0b' },
-                    ].map((d) => (
-                      <div key={d.label} className={`space-y-1.5 ${!(profile?.plan === 'pro' || profile?.plan === 'business') ? 'opacity-30 pointer-events-none select-none' : ''}`}>
-                        <div className="flex justify-between text-xs">
-                          <span className="font-semibold text-foreground">{d.label}</span>
-                          <span className="font-bold" style={{ color: d.color }}>{d.pct}%</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-muted overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${d.pct}%`, backgroundColor: d.color }} />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Top links */}
-                <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-                  <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Top Links Clicked</h4>
-                  <div className="space-y-3">
-                    {[
-                      { platform: 'Instagram', clicks: 142, pct: 100 },
-                      { platform: 'LinkedIn', clicks: 97, pct: 68 },
-                      { platform: 'WhatsApp', clicks: 61, pct: 43 },
-                      { platform: 'UPI / GPay', clicks: 56, pct: 39 },
-                      { platform: 'GitHub', clicks: 38, pct: 27 },
-                    ].map((l) => (
-                      <div key={l.platform} className="flex items-center gap-4">
-                        <span className="text-xs font-bold text-foreground w-28 shrink-0 truncate">{l.platform}</span>
-                        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
-                          <div className="h-full rounded-full bg-[#3f5ce6]" style={{ width: `${l.pct}%` }} />
+                    {/* Device + OS + Browser breakdown row */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                      {/* Device breakdown */}
+                      <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+                        <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Device Breakdown</h4>
+                        <div className="space-y-4">
+                          {analyticsData.devices.map((d: any) => (
+                            <div key={d.label} className="space-y-1.5">
+                              <div className="flex justify-between text-xs">
+                                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                                  {d.label}
+                                </span>
+                                <span className="font-bold text-muted-foreground text-[10px]">{d.count} taps · <span style={{ color: d.color }}>{d.pct}%</span></span>
+                              </div>
+                              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                <div className="h-full rounded-full transition-all" style={{ width: `${d.pct}%`, backgroundColor: d.color }} />
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        <span className="text-xs font-black text-[#3f5ce6] w-12 text-right shrink-0">{l.clicks}</span>
                       </div>
-                    ))}
-                  </div>
-                </div>
+
+                      {/* OS breakdown */}
+                      <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">OS & Platform</h4>
+                          {!(profile?.plan === 'pro' || profile?.plan === 'business') && (
+                            <span className="text-[9px] font-bold text-amber-500 bg-amber-500/10 rounded px-1.5 py-0.5 border border-amber-500/20 flex items-center gap-1">
+                              <Lock size={9} /> PRO
+                            </span>
+                          )}
+                        </div>
+                        <div className={`space-y-4 ${!(profile?.plan === 'pro' || profile?.plan === 'business') ? 'opacity-30 pointer-events-none select-none' : ''}`}>
+                          {analyticsData.os.map((d: any) => (
+                            <div key={d.label} className="space-y-1.5">
+                              <div className="flex justify-between text-xs">
+                                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                                  {d.label}
+                                </span>
+                                <span className="font-bold text-muted-foreground text-[10px]">{d.count} taps · <span style={{ color: d.color }}>{d.pct}%</span></span>
+                              </div>
+                              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                <div className="h-full rounded-full transition-all" style={{ width: `${d.pct}%`, backgroundColor: d.color }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Browser breakdown */}
+                      <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+                        <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Web Browsers</h4>
+                        <div className="space-y-4">
+                          {analyticsData.browsers.map((d: any) => (
+                            <div key={d.label} className="space-y-1.5">
+                              <div className="flex justify-between text-xs">
+                                <span className="font-semibold text-foreground flex items-center gap-1.5">
+                                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: d.color }} />
+                                  {d.label}
+                                </span>
+                                <span className="font-bold text-muted-foreground text-[10px]">{d.count} taps · <span style={{ color: d.color }}>{d.pct}%</span></span>
+                              </div>
+                              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                                <div className="h-full rounded-full transition-all" style={{ width: `${d.pct}%`, backgroundColor: d.color }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Geo Location Breakdown & Top Links Clicked Grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                      {/* Geographic locations */}
+                      <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+                        <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Geographic Tap Performance</h4>
+                        <div className="space-y-3">
+                          {analyticsData.locations.length === 0 ? (
+                            <p className="text-xs text-muted-foreground py-6 text-center">No location tap data logged yet.</p>
+                          ) : (
+                            analyticsData.locations.map((loc: any, i: number) => (
+                              <div key={i} className="flex items-center justify-between text-xs border-b border-border/40 pb-2 last:border-0 last:pb-0">
+                                <div>
+                                  <span className="font-bold text-foreground">{loc.city}</span>
+                                  <span className="text-[10px] text-muted-foreground ml-1.5">{loc.country}</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-[10px] text-muted-foreground">{loc.count} taps</span>
+                                  <span className="font-black text-[#3f5ce6] w-8 text-right">{loc.pct}%</span>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Top Links Clicked */}
+                      <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+                        <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Top Links Clicked</h4>
+                        <div className="space-y-3">
+                          {analyticsData.topLinks.length === 0 ? (
+                            <p className="text-xs text-muted-foreground py-6 text-center">No link clicks logged yet.</p>
+                          ) : (
+                            analyticsData.topLinks.map((l: any, i: number) => (
+                              <div key={i} className="flex items-center gap-4">
+                                <span className="text-xs font-bold text-foreground w-28 shrink-0 truncate">{l.label}</span>
+                                <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                                  <div className="h-full rounded-full bg-[#3f5ce6]" style={{ width: `${l.pct}%` }} />
+                                </div>
+                                <span className="text-xs font-black text-[#3f5ce6] w-12 text-right shrink-0">{l.clicks} clicks</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Catalog Products Performance */}
+                    <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+                      <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Product Catalog Engagement (CTR)</h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs text-left border-collapse">
+                          <thead>
+                            <tr className="border-b border-border/80 text-muted-foreground font-bold text-[10px] uppercase">
+                              <th className="pb-3 w-1/2">Product Offering</th>
+                              <th className="pb-3 text-center">Views</th>
+                              <th className="pb-3 text-center">Clicks</th>
+                              <th className="pb-3 text-right">Click-Through Rate</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border/40">
+                            {analyticsData.topProducts.length === 0 ? (
+                              <tr>
+                                <td colSpan={4} className="py-6 text-center text-muted-foreground">No catalog product performance logged yet.</td>
+                              </tr>
+                            ) : (
+                              analyticsData.topProducts.map((p: any, i: number) => (
+                                <tr key={i} className="hover:bg-muted/10">
+                                  <td className="py-3 font-bold text-foreground">{p.name}</td>
+                                  <td className="py-3 text-center text-muted-foreground font-semibold">{p.views}</td>
+                                  <td className="py-3 text-center text-muted-foreground font-semibold">{p.clicks}</td>
+                                  <td className="py-3 text-right">
+                                    <div className="inline-flex items-center gap-1.5 font-black text-foreground">
+                                      <span className={`w-1.5 h-1.5 rounded-full ${p.ctr > 20 ? 'bg-emerald-500' : p.ctr > 10 ? 'bg-blue-500' : 'bg-amber-500'}`} />
+                                      {p.ctr}%
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
