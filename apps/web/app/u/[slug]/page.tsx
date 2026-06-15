@@ -145,25 +145,41 @@ const renderStars = (rating: number | string | null | undefined) => {
   );
 };
 
-const ProductCardCarousel = ({ imageUrls, alt, objectFit = 'cover' }: { imageUrls: string[]; alt: string; objectFit?: 'cover' | 'contain' }) => {
+const ProductCardCarousel = ({ 
+  imageUrls, 
+  alt, 
+  objectFit = 'cover',
+  heightClass = 'h-full',
+  style
+}: { 
+  imageUrls: string[]; 
+  alt: string; 
+  objectFit?: 'cover' | 'contain';
+  heightClass?: string;
+  style?: React.CSSProperties;
+}) => {
   const length = imageUrls.length;
   const [currentIndex, setCurrentIndex] = useState(1);
   const [isTransitioning, setIsTransitioning] = useState(true);
   const [sliding, setSliding] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Touch swipe states
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+
   const slides = [imageUrls[length - 1], ...imageUrls, imageUrls[0]];
 
-  const nextSlide = (e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
+  const nextSlide = (e?: React.MouseEvent | React.TouchEvent) => {
+    if (e && 'stopPropagation' in e) e.stopPropagation();
     if (sliding) return;
     setSliding(true);
     setIsTransitioning(true);
     setCurrentIndex((prev) => prev + 1);
   };
 
-  const prevSlide = (e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
+  const prevSlide = (e?: React.MouseEvent | React.TouchEvent) => {
+    if (e && 'stopPropagation' in e) e.stopPropagation();
     if (sliding) return;
     setSliding(true);
     setIsTransitioning(true);
@@ -215,6 +231,28 @@ const ProductCardCarousel = ({ imageUrls, alt, objectFit = 'cover' }: { imageUrl
     return () => stopAutoSlide();
   }, [length]);
 
+  // Touch events for mobile swiping
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchEndX.current = e.touches[0].clientX;
+    stopAutoSlide();
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    const diffX = touchStartX.current - touchEndX.current;
+    const swipeThreshold = 40; // minimum swipe distance in pixels
+    if (diffX > swipeThreshold) {
+      nextSlide();
+    } else if (diffX < -swipeThreshold) {
+      prevSlide();
+    }
+    startAutoSlide();
+  };
+
   if (!imageUrls || length === 0) return null;
 
   if (length === 1) {
@@ -227,39 +265,77 @@ const ProductCardCarousel = ({ imageUrls, alt, objectFit = 'cover' }: { imageUrl
     );
   }
 
+  // Map index safely to 1..length range for display
+  let displayIndex = currentIndex;
+  if (currentIndex === 0) {
+    displayIndex = length;
+  } else if (currentIndex === length + 1) {
+    displayIndex = 1;
+  }
+
   return (
     <div 
-      className="relative w-full h-full group/carousel overflow-hidden"
+      className="flex flex-col w-full group/carousel"
       onMouseEnter={stopAutoSlide}
       onMouseLeave={startAutoSlide}
     >
+      {/* Slider Container */}
       <div 
-        className="absolute inset-0 flex"
-        onTransitionEnd={handleTransitionEnd}
-        style={{ 
-          transform: `translateX(-${currentIndex * 100}%)`,
-          transition: isTransitioning ? 'transform 500ms ease-out' : 'none'
-        }}
+        className={`relative w-full overflow-hidden ${heightClass} bg-zinc-950`}
+        style={style}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
-        {slides.map((url, idx) => (
-          <div key={idx} className="w-full h-full shrink-0">
-            <img src={url} alt={`${alt} - slide`} className={`w-full h-full object-${objectFit}`} />
-          </div>
-        ))}
+        <div 
+          className="absolute inset-0 flex"
+          onTransitionEnd={handleTransitionEnd}
+          style={{ 
+            transform: `translateX(-${currentIndex * 100}%)`,
+            transition: isTransitioning ? 'transform 500ms ease-out' : 'none'
+          }}
+        >
+          {slides.map((url, idx) => (
+            <div key={idx} className="w-full h-full shrink-0">
+              <img src={url} alt={`${alt} - slide`} className={`w-full h-full object-${objectFit}`} />
+            </div>
+          ))}
+        </div>
+
+        {/* Counter Overlay (e.g. 1/5) */}
+        <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold z-10 select-none">
+          {displayIndex}/{length}
+        </div>
+
+        {/* Manual navigation buttons (hidden on mobile, visible on desktop hover) */}
+        <button 
+          onClick={prevSlide}
+          className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center opacity-0 md:group-hover/carousel:opacity-100 transition-opacity cursor-pointer z-10 text-xs"
+        >
+          ‹
+        </button>
+        <button 
+          onClick={nextSlide}
+          className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center opacity-0 md:group-hover/carousel:opacity-100 transition-opacity cursor-pointer z-10 text-xs"
+        >
+          ›
+        </button>
       </div>
 
-      <button 
-        onClick={prevSlide}
-        className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity cursor-pointer z-10 text-xs"
-      >
-        ‹
-      </button>
-      <button 
-        onClick={nextSlide}
-        className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center opacity-0 group-hover/carousel:opacity-100 transition-opacity cursor-pointer z-10 text-xs"
-      >
-        ›
-      </button>
+      {/* Dots Indicator (Outside the image bottom center) */}
+      <div className="flex justify-center items-center gap-1.5 py-2.5 shrink-0 bg-transparent">
+        {imageUrls.map((_, idx) => {
+          const isActive = displayIndex - 1 === idx;
+          return (
+            <span 
+              key={idx} 
+              className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                isActive ? 'bg-purple-500 w-3' : 'bg-zinc-700'
+              }`}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -1119,7 +1195,7 @@ export default function NFCProfileLandingPage() {
   const primaryEmail = vcard?.emails?.[0]?.email || ''
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col items-center sm:py-8 px-0 sm:px-4 relative overflow-x-hidden select-none">
+    <div className="min-h-[100dvh] bg-zinc-950 text-zinc-100 flex flex-col items-center pt-0 sm:pt-8 pb-0 sm:pb-8 px-0 sm:px-4 relative overflow-x-hidden select-none">
       
       {/* Background radial glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[120px] pointer-events-none -z-10" />
@@ -1240,38 +1316,41 @@ export default function NFCProfileLandingPage() {
             <div className="flex items-center gap-1 p-1 bg-zinc-900/60 border border-zinc-800 rounded-2xl w-full">
               <button
                 onClick={() => setActiveTab('socials')}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                   activeTab === 'socials'
                     ? 'bg-zinc-800 text-white shadow-sm'
                     : 'text-zinc-400 hover:text-zinc-200'
                 }`}
               >
-                <Globe size={13} /> Social Profiles
+                <Globe size={16} className="shrink-0" />
+                <span className="hidden sm:inline">Social Profiles</span>
               </button>
 
               {products.length > 0 && (
                 <button
                   onClick={() => setActiveTab('products')}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'products'
                       ? 'bg-zinc-800 text-white shadow-sm'
                       : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
-                  <ShoppingCart size={13} /> Products
+                  <ShoppingCart size={16} className="shrink-0" />
+                  <span className="hidden sm:inline">Products</span>
                 </button>
               )}
 
               {feeds.length > 0 && (
                 <button
                   onClick={() => setActiveTab('feeds')}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     activeTab === 'feeds'
                       ? 'bg-zinc-800 text-white shadow-sm'
                       : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
-                  <Grid size={13} /> Feeds
+                  <Grid size={16} className="shrink-0" />
+                  <span className="hidden sm:inline">Feeds</span>
                 </button>
               )}
             </div>
@@ -1326,8 +1405,8 @@ export default function NFCProfileLandingPage() {
                   >
                     {/* Image Carousel / Banner Header */}
                     {hasImages ? (
-                      <div className="h-48 relative overflow-hidden bg-zinc-950 border-b border-zinc-800/60">
-                        <ProductCardCarousel imageUrls={p.image_urls} alt={p.name} />
+                      <div className="relative bg-zinc-950 border-b border-zinc-800/60">
+                        <ProductCardCarousel imageUrls={p.image_urls} alt={p.name} heightClass="h-48" />
                       </div>
                     ) : p.image_url ? (
                       <div className="h-48 relative overflow-hidden bg-zinc-950 border-b border-zinc-800/60">
@@ -1588,15 +1667,7 @@ export default function NFCProfileLandingPage() {
                               className="w-full h-auto max-h-[380px] block object-contain mx-auto"
                             />
                           ) : (
-                            <div
-                              className="w-full relative overflow-hidden bg-zinc-950"
-                              style={{
-                                aspectRatio: imageDimensions[feed.id]
-                                  ? `${imageDimensions[feed.id].width} / ${imageDimensions[feed.id].height}`
-                                  : '16/9',
-                                maxHeight: '380px'
-                              }}
-                            >
+                            <>
                               <img
                                 src={urls[0]}
                                 alt="invisible loader"
@@ -1613,8 +1684,15 @@ export default function NFCProfileLandingPage() {
                                 imageUrls={urls}
                                 alt="Feed Post"
                                 objectFit="contain"
+                                heightClass=""
+                                style={{
+                                  aspectRatio: imageDimensions[feed.id]
+                                    ? `${imageDimensions[feed.id].width} / ${imageDimensions[feed.id].height}`
+                                    : '16/9',
+                                  maxHeight: '380px'
+                                }}
                               />
-                            </div>
+                            </>
                           )}
                         </div>
                       );
@@ -1625,6 +1703,27 @@ export default function NFCProfileLandingPage() {
                         <FeedVideoPlayer src={feed.media_url} />
                       </div>
                     )}
+
+                    {/* Reactions Bar (directly below media/dots, without divider lines) */}
+                    <div className="flex flex-wrap items-center gap-1.5 justify-start">
+                      {[
+                        { type: 'like', icon: ThumbsUp, label: '👍', count: likes },
+                        { type: 'love', icon: Heart, label: '❤️', count: loves },
+                        { type: 'fire', icon: Flame, label: '🔥', count: fires },
+                        { type: 'clap', icon: MessageCircle, label: '🎉', count: claps }
+                      ].map((react) => {
+                        return (
+                          <button
+                            key={react.type}
+                            onClick={() => handleReact(feed.id, react.type)}
+                            className="flex items-center gap-1.5 py-1 px-2.5 rounded-lg bg-zinc-800/40 hover:bg-purple-500/10 border border-zinc-800 hover:border-purple-500/20 text-zinc-400 hover:text-purple-400 text-[10px] font-bold transition-all active:scale-90 cursor-pointer"
+                          >
+                            <span>{react.label}</span>
+                            <span>{react.count}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
 
                     {/* Caption */}
                     {feed.caption && (
@@ -1648,27 +1747,6 @@ export default function NFCProfileLandingPage() {
                         <ExternalLink size={13} className="text-zinc-500 group-hover:text-purple-400 shrink-0" />
                       </a>
                     )}
-
-                    {/* Reactions Bar */}
-                    <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-zinc-800/40 justify-start">
-                      {[
-                        { type: 'like', icon: ThumbsUp, label: '👍', count: likes },
-                        { type: 'love', icon: Heart, label: '❤️', count: loves },
-                        { type: 'fire', icon: Flame, label: '🔥', count: fires },
-                        { type: 'clap', icon: MessageCircle, label: '🎉', count: claps }
-                      ].map((react) => {
-                        return (
-                          <button
-                            key={react.type}
-                            onClick={() => handleReact(feed.id, react.type)}
-                            className="flex items-center gap-1.5 py-1 px-2.5 rounded-lg bg-zinc-800/40 hover:bg-purple-500/10 border border-zinc-800 hover:border-purple-500/20 text-zinc-400 hover:text-purple-400 text-[10px] font-bold transition-all active:scale-90 cursor-pointer"
-                          >
-                            <span>{react.label}</span>
-                            <span>{react.count}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
                   </div>
                 )
               })}
