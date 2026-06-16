@@ -91,7 +91,6 @@ DROP POLICY IF EXISTS "Public can read active lead forms" ON public.lead_forms;
 CREATE POLICY "Public can read active lead forms" 
   ON public.lead_forms FOR SELECT 
   USING (
-    is_active = true AND 
     EXISTS (
       SELECT 1 FROM public.card_profiles cp 
       WHERE cp.id = lead_forms.profile_id AND cp.status != 'draft'

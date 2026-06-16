@@ -1818,8 +1818,8 @@ export default function NFCProfileLandingPage() {
           </div>
         )}
 
-        {/* PRO FEATURE: Lead Capture Form - rendered at the bottom of all tabs (except products and feeds tabs) */}
-        {isPro && leadForm && activeTab !== 'products' && activeTab !== 'feeds' && (
+        {/* PRO FEATURE: Lead Capture Form - rendered at the bottom of the socials tab */}
+        {isPro && leadForm && activeTab === 'socials' && (
           <div id="leads-section" className="px-4 sm:px-6 space-y-3 pt-6 scroll-mt-6">
             <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest pl-1">{leadForm.title || 'Get in touch'}</h3>
             {leadForm.subtitle && <p className="text-[10px] text-zinc-400 pl-1 -mt-1 leading-normal">{leadForm.subtitle}</p>}
