@@ -96,3 +96,88 @@ CREATE POLICY "Public can read active lead forms"
       WHERE cp.id = lead_forms.profile_id AND cp.status != 'draft'
     )
   );
+
+-- 10. Enable Supabase Realtime for database tables to trigger instant client-side updates
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_rel pr
+    JOIN pg_publication p ON p.oid = pr.prpubid
+    JOIN pg_class c ON c.oid = pr.prrelid
+    WHERE p.pubname = 'supabase_realtime' AND c.relname = 'nfc_cards'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.nfc_cards;
+  END IF;
+  
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_rel pr
+    JOIN pg_publication p ON p.oid = pr.prpubid
+    JOIN pg_class c ON c.oid = pr.prrelid
+    WHERE p.pubname = 'supabase_realtime' AND c.relname = 'accounts'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.accounts;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_rel pr
+    JOIN pg_publication p ON p.oid = pr.prpubid
+    JOIN pg_class c ON c.oid = pr.prrelid
+    WHERE p.pubname = 'supabase_realtime' AND c.relname = 'card_profiles'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.card_profiles;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_rel pr
+    JOIN pg_publication p ON p.oid = pr.prpubid
+    JOIN pg_class c ON c.oid = pr.prrelid
+    WHERE p.pubname = 'supabase_realtime' AND c.relname = 'vcard_details'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.vcard_details;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_rel pr
+    JOIN pg_publication p ON p.oid = pr.prpubid
+    JOIN pg_class c ON c.oid = pr.prrelid
+    WHERE p.pubname = 'supabase_realtime' AND c.relname = 'profile_links'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.profile_links;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_rel pr
+    JOIN pg_publication p ON p.oid = pr.prpubid
+    JOIN pg_class c ON c.oid = pr.prrelid
+    WHERE p.pubname = 'supabase_realtime' AND c.relname = 'social_links'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.social_links;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_rel pr
+    JOIN pg_publication p ON p.oid = pr.prpubid
+    JOIN pg_class c ON c.oid = pr.prrelid
+    WHERE p.pubname = 'supabase_realtime' AND c.relname = 'profile_products'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.profile_products;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_rel pr
+    JOIN pg_publication p ON p.oid = pr.prpubid
+    JOIN pg_class c ON c.oid = pr.prrelid
+    WHERE p.pubname = 'supabase_realtime' AND c.relname = 'profile_product_reviews'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.profile_product_reviews;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_rel pr
+    JOIN pg_publication p ON p.oid = pr.prpubid
+    JOIN pg_class c ON c.oid = pr.prrelid
+    WHERE p.pubname = 'supabase_realtime' AND c.relname = 'profile_feeds'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.profile_feeds;
+  END IF;
+END $$;

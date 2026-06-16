@@ -550,9 +550,9 @@ export default function NFCProfileLandingPage() {
   useEffect(() => {
     let active = true
 
-    const loadNFCProfile = async () => {
+    const loadNFCProfile = async (isInitial = false) => {
       try {
-        setLoading(true)
+        if (isInitial) setLoading(true)
         
         // 1. Fetch NFC card matching slug (allow public reading by status check or bypassing since it's client tapped)
         const { data: cardData, error: cardErr } = await supabase
@@ -577,6 +577,14 @@ export default function NFCProfileLandingPage() {
         if (cardData.status === 'provisioned') {
           if (active) setCardProvisionedOnly(true)
           return
+        }
+
+        // Clear warning states if active card is found
+        if (active) {
+          setCardDeactivated(false)
+          setCardProvisionedOnly(false)
+          setCardNotFound(false)
+          setProfileNotFound(false)
         }
 
         // 3. Fetch account associated with the card (to check subscription)
@@ -633,63 +641,65 @@ export default function NFCProfileLandingPage() {
 
         if (active) setProfile(targetProfile)
 
-        // 6. Log dynamic tap activity event in card_taps
-        let loggedTapId = null
-        try {
-          const uAgent = typeof window !== 'undefined' ? window.navigator.userAgent : 'Unknown'
-          const isMobile = /Mobi|Android|iPhone/i.test(uAgent)
-          const deviceType = isMobile ? 'mobile' : 'desktop'
-          let detectedOS = 'Other'
-          if (/iPhone|iPad|iPod/i.test(uAgent)) detectedOS = 'iOS'
-          else if (/Android/i.test(uAgent)) detectedOS = 'Android'
-          else if (/Windows/i.test(uAgent)) detectedOS = 'Windows'
-          else if (/Mac/i.test(uAgent)) detectedOS = 'macOS'
-
-          let detectedBrowser = 'Other'
-          if (uAgent.includes('Chrome') && !uAgent.includes('Chromium') && !uAgent.includes('Edg') && !uAgent.includes('OPR')) detectedBrowser = 'Chrome'
-          else if (uAgent.includes('Safari') && !uAgent.includes('Chrome') && !uAgent.includes('Chromium')) detectedBrowser = 'Safari'
-          else if (uAgent.includes('Firefox')) detectedBrowser = 'Firefox'
-          else if (uAgent.includes('Edg')) detectedBrowser = 'Edge'
-          else if (uAgent.includes('OPR') || uAgent.includes('Opera')) detectedBrowser = 'Opera'
-
-          const referrerUrl = typeof document !== 'undefined' ? document.referrer || null : null
-
-          let ipData: any = null
+        // 6. Log dynamic tap activity event in card_taps (ONLY on initial load)
+        let loggedTapId = tapId
+        if (isInitial) {
           try {
-            const res = await fetch('https://ipapi.co/json/')
-            if (res.ok) {
-              ipData = await res.json()
+            const uAgent = typeof window !== 'undefined' ? window.navigator.userAgent : 'Unknown'
+            const isMobile = /Mobi|Android|iPhone/i.test(uAgent)
+            const deviceType = isMobile ? 'mobile' : 'desktop'
+            let detectedOS = 'Other'
+            if (/iPhone|iPad|iPod/i.test(uAgent)) detectedOS = 'iOS'
+            else if (/Android/i.test(uAgent)) detectedOS = 'Android'
+            else if (/Windows/i.test(uAgent)) detectedOS = 'Windows'
+            else if (/Mac/i.test(uAgent)) detectedOS = 'macOS'
+
+            let detectedBrowser = 'Other'
+            if (uAgent.includes('Chrome') && !uAgent.includes('Chromium') && !uAgent.includes('Edg') && !uAgent.includes('OPR')) detectedBrowser = 'Chrome'
+            else if (uAgent.includes('Safari') && !uAgent.includes('Chrome') && !uAgent.includes('Chromium')) detectedBrowser = 'Safari'
+            else if (uAgent.includes('Firefox')) detectedBrowser = 'Firefox'
+            else if (uAgent.includes('Edg')) detectedBrowser = 'Edge'
+            else if (uAgent.includes('OPR') || uAgent.includes('Opera')) detectedBrowser = 'Opera'
+
+            const referrerUrl = typeof document !== 'undefined' ? document.referrer || null : null
+
+            let ipData: any = null
+            try {
+              const res = await fetch('https://ipapi.co/json/')
+              if (res.ok) {
+                ipData = await res.json()
+              }
+            } catch (err) {
+              console.error('IP location lookup failed:', err)
+            }
+
+            const { data: newTap, error: tapErr } = await supabase
+              .from('card_taps')
+              .insert({
+                card_id: cardData.id,
+                profile_id: targetProfile.id,
+                user_agent: uAgent,
+                device_type: deviceType,
+                os: detectedOS,
+                browser: detectedBrowser,
+                referrer: referrerUrl,
+                ip_address: ipData?.ip || null,
+                city: ipData?.city || null,
+                region: ipData?.region || null,
+                country: ipData?.country_name || null,
+                latitude: ipData?.latitude || null,
+                longitude: ipData?.longitude || null,
+              })
+              .select()
+              .single()
+
+            if (!tapErr && newTap) {
+              loggedTapId = newTap.id
+              if (active) setTapId(newTap.id)
             }
           } catch (err) {
-            console.error('IP location lookup failed:', err)
+            console.error('Failed to log card tap event:', err)
           }
-
-          const { data: newTap, error: tapErr } = await supabase
-            .from('card_taps')
-            .insert({
-              card_id: cardData.id,
-              profile_id: targetProfile.id,
-              user_agent: uAgent,
-              device_type: deviceType,
-              os: detectedOS,
-              browser: detectedBrowser,
-              referrer: referrerUrl,
-              ip_address: ipData?.ip || null,
-              city: ipData?.city || null,
-              region: ipData?.region || null,
-              country: ipData?.country_name || null,
-              latitude: ipData?.latitude || null,
-              longitude: ipData?.longitude || null,
-            })
-            .select()
-            .single()
-
-          if (!tapErr && newTap) {
-            loggedTapId = newTap.id
-            if (active) setTapId(newTap.id)
-          }
-        } catch (err) {
-          console.error('Failed to log card tap event:', err)
         }
 
         // 7. Load standard vCard details
@@ -727,6 +737,8 @@ export default function NFCProfileLandingPage() {
               created_at: pl.created_at,
             }))
           if (active) setLinks(mapped)
+        } else {
+          if (active) setLinks([])
         }
 
         // 9. Load Pro features only if plan is currently active
@@ -743,6 +755,7 @@ export default function NFCProfileLandingPage() {
             .maybeSingle()
 
           if (active && form) setLeadForm(form)
+          else if (active && !form) setLeadForm(null)
 
           // Fetch products with reviews
           const { data: productsData } = await supabase
@@ -754,13 +767,8 @@ export default function NFCProfileLandingPage() {
 
           if (active && productsData) {
             setProducts(productsData)
-            // Log product views analytics
-            productsData.forEach(async (p) => {
-              const { error } = await supabase.rpc('increment_product_view', { product_id: p.id })
-              if (error) {
-                console.error('Failed to update product views:', error)
-              }
-            })
+          } else if (active) {
+            setProducts([])
           }
 
           // Fetch feeds
@@ -772,6 +780,14 @@ export default function NFCProfileLandingPage() {
             .order('created_at', { ascending: false })
 
           if (active && feedsData) setFeeds(feedsData)
+          else if (active) setFeeds([])
+        } else {
+          // Downgraded / Free fallback reset
+          if (active) {
+            setLeadForm(null)
+            setProducts([])
+            setFeeds([])
+          }
         }
 
       } catch (err) {
@@ -781,10 +797,45 @@ export default function NFCProfileLandingPage() {
       }
     }
 
-    loadNFCProfile()
+    loadNFCProfile(true)
+
+    // Set up Realtime listener to trigger reload on any changes to card resources
+    const channel = supabase
+      .channel(`nfc-profile-${slug}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'nfc_cards' }, (payload: any) => {
+        if ((payload.new && payload.new.slug === slug) || (payload.old && payload.old.slug === slug)) {
+          loadNFCProfile(false)
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'accounts' }, () => {
+        loadNFCProfile(false)
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'card_profiles' }, () => {
+        loadNFCProfile(false)
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vcard_details' }, () => {
+        loadNFCProfile(false)
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profile_links' }, () => {
+        loadNFCProfile(false)
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'social_links' }, () => {
+        loadNFCProfile(false)
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profile_products' }, () => {
+        loadNFCProfile(false)
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profile_product_reviews' }, () => {
+        loadNFCProfile(false)
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profile_feeds' }, () => {
+        loadNFCProfile(false)
+      })
+      .subscribe()
 
     return () => {
       active = false
+      supabase.removeChannel(channel)
     }
   }, [slug])
 
@@ -879,12 +930,13 @@ export default function NFCProfileLandingPage() {
     }
   }
 
-  // Product click logging
+  // Product click/explore logging
   const handleProductClick = async (productId: string, linkUrl: string) => {
     try {
       await supabase.rpc('increment_product_click', { product_id: productId })
+      await supabase.rpc('increment_product_view', { product_id: productId })
     } catch (err) {
-      console.error('Failed to log product click:', err)
+      console.error('Failed to log product click/view:', err)
     }
     
     if (linkUrl) {
@@ -959,6 +1011,12 @@ export default function NFCProfileLandingPage() {
         })
       
       if (error) throw error
+
+      try {
+        await supabase.rpc('increment_product_view', { product_id: productId })
+      } catch (viewErr) {
+        console.error('Failed to log product view on enquiry:', viewErr)
+      }
 
       setReviewerNames(prev => ({ ...prev, [productId]: mappedName || 'Anonymous Client' }))
       setEnquirySubmittedProductIds(prev => [...prev, productId])
