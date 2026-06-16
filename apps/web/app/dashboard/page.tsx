@@ -77,6 +77,34 @@ const parseLocalDate = (dateStr: string) => {
   return new Date(year, month, day)
 }
 
+// Helper to parse browser name and OS name from user agent
+const getBrowserAndOS = (customUa?: string) => {
+  const ua = customUa || (typeof window !== 'undefined' ? window.navigator.userAgent : '')
+  let browser = 'Unknown Browser'
+  let os = 'Unknown OS'
+
+  if (!ua) return { browser, os }
+
+  if (ua.indexOf('Firefox') > -1) browser = 'Mozilla Firefox'
+  else if (ua.indexOf('SamsungBrowser') > -1) browser = 'Samsung Internet'
+  else if (ua.indexOf('Opera') > -1 || ua.indexOf('OPR') > -1) browser = 'Opera'
+  else if (ua.indexOf('Trident') > -1) browser = 'Internet Explorer'
+  else if (ua.indexOf('Edge') > -1 || ua.indexOf('Edg') > -1) browser = 'Microsoft Edge'
+  else if (ua.indexOf('Chrome') > -1) browser = 'Google Chrome'
+  else if (ua.indexOf('Safari') > -1) browser = 'Apple Safari'
+
+  if (ua.indexOf('Windows NT 10.0') > -1) os = 'Windows 10/11'
+  else if (ua.indexOf('Windows NT 6.2') > -1) os = 'Windows 8'
+  else if (ua.indexOf('Windows NT 6.1') > -1) os = 'Windows 7'
+  else if (ua.indexOf('Macintosh') > -1) os = 'macOS'
+  else if (ua.indexOf('iPhone') > -1) os = 'iOS'
+  else if (ua.indexOf('iPad') > -1) os = 'iPadOS'
+  else if (ua.indexOf('Android') > -1) os = 'Android'
+  else if (ua.indexOf('Linux') > -1) os = 'Linux'
+
+  return { browser, os }
+}
+
 // Helper to get a case-insensitive value from lead.data
 const getLeadDataValue = (data: any, fieldId: string) => {
   if (!data || !fieldId) return undefined
@@ -408,14 +436,16 @@ const MOCK_LEADS = [
 ]
 
 const CATEGORY_MAP: Record<string, string[]> = {
-  Social: ['Instagram', 'Facebook', 'LinkedIn', 'YouTube', 'X (Twitter)', 'Threads', 'TikTok', 'Snapchat', 'Pinterest', 'Tumblr', 'Bluesky', 'Mastodon'],
-  Messaging: ['WhatsApp', 'Telegram', 'Discord', 'Signal', 'Line', 'Viber', 'Skype', 'Messenger'],
-  Developer: ['GitHub', 'GitLab', 'Stack Overflow', 'Bitbucket', 'CodePen', 'Replit', 'HackerNews', 'Dev.to'],
-  Business: ['Calendly', 'Zoom', 'Google Meet', 'Microsoft Teams', 'Notion', 'Loom', 'Slack', 'Typeform'],
-  Payments: ['UPI', 'Google Pay', 'PhonePe', 'Paytm', 'Amazon Pay', 'Razorpay', 'Stripe', 'PayPal'],
-  Content: ['Medium', 'Substack', 'Behance', 'Dribbble', 'Ghost', 'Hashnode', 'Figma', 'Mirror'],
-  Music: ['Spotify', 'Apple Music', 'SoundCloud', 'YouTube Music', 'Amazon Music', 'Tidal', 'Deezer'],
-  Ecommerce: ['Amazon', 'Flipkart', 'Shopify Store', 'Etsy', 'Nykaa', 'Myntra', 'Ajio', 'Meesho', 'Snapdeal', 'JioMart', 'Zomato', 'Swiggy']
+  Social: [
+    'Instagram', 'Facebook', 'LinkedIn', 'YouTube', 'X (Twitter)', 'Threads', 'TikTok', 'Snapchat', 'Pinterest', 'Tumblr', 'Bluesky', 'Mastodon',
+    'WhatsApp', 'Telegram', 'Discord', 'Signal', 'Line', 'Viber', 'Skype', 'Messenger',
+    'GitHub', 'GitLab', 'Stack Overflow', 'Bitbucket', 'CodePen', 'Replit', 'HackerNews', 'Dev.to',
+    'Calendly', 'Zoom', 'Google Meet', 'Microsoft Teams', 'Notion', 'Loom', 'Slack', 'Typeform',
+    'Medium', 'Substack', 'Behance', 'Dribbble', 'Ghost', 'Hashnode', 'Figma', 'Mirror',
+    'Spotify', 'Apple Music', 'SoundCloud', 'YouTube Music', 'Amazon Music', 'Tidal', 'Deezer',
+    'Amazon', 'Flipkart', 'Shopify Store', 'Etsy', 'Nykaa', 'Myntra', 'Ajio', 'Meesho', 'Snapdeal', 'JioMart', 'Zomato', 'Swiggy'
+  ],
+  Payments: ['UPI', 'Google Pay', 'PhonePe', 'Paytm', 'Amazon Pay', 'Razorpay', 'Stripe', 'PayPal']
 }
 
 const PLATFORM_LIST = [
@@ -433,14 +463,14 @@ const PLATFORM_LIST = [
   { name: 'Mastodon', category: 'Social' },
 
   // Messaging
-  { name: 'WhatsApp', category: 'Messaging' },
-  { name: 'Telegram', category: 'Messaging' },
-  { name: 'Discord', category: 'Messaging' },
-  { name: 'Signal', category: 'Messaging' },
-  { name: 'Line', category: 'Messaging' },
-  { name: 'Viber', category: 'Messaging' },
-  { name: 'Skype', category: 'Messaging' },
-  { name: 'Messenger', category: 'Messaging' },
+  { name: 'WhatsApp', category: 'Social' },
+  { name: 'Telegram', category: 'Social' },
+  { name: 'Discord', category: 'Social' },
+  { name: 'Signal', category: 'Social' },
+  { name: 'Line', category: 'Social' },
+  { name: 'Viber', category: 'Social' },
+  { name: 'Skype', category: 'Social' },
+  { name: 'Messenger', category: 'Social' },
 
   // Payments
   { name: 'UPI', category: 'Payments' },
@@ -453,53 +483,53 @@ const PLATFORM_LIST = [
   { name: 'PayPal', category: 'Payments' },
 
   // Developer
-  { name: 'GitHub', category: 'Developer' },
-  { name: 'GitLab', category: 'Developer' },
-  { name: 'Stack Overflow', category: 'Developer' },
-  { name: 'Bitbucket', category: 'Developer' },
-  { name: 'CodePen', category: 'Developer' },
-  { name: 'Replit', category: 'Developer' },
-  { name: 'HackerNews', category: 'Developer' },
-  { name: 'Dev.to', category: 'Developer' },
+  { name: 'GitHub', category: 'Social' },
+  { name: 'GitLab', category: 'Social' },
+  { name: 'Stack Overflow', category: 'Social' },
+  { name: 'Bitbucket', category: 'Social' },
+  { name: 'CodePen', category: 'Social' },
+  { name: 'Replit', category: 'Social' },
+  { name: 'HackerNews', category: 'Social' },
+  { name: 'Dev.to', category: 'Social' },
 
   // Business
-  { name: 'Calendly', category: 'Business' },
-  { name: 'Zoom', category: 'Business' },
-  { name: 'Google Meet', category: 'Business' },
-  { name: 'Microsoft Teams', category: 'Business' },
-  { name: 'Notion', category: 'Business' },
-  { name: 'Loom', category: 'Business' },
-  { name: 'Slack', category: 'Business' },
-  { name: 'Typeform', category: 'Business' },
+  { name: 'Calendly', category: 'Social' },
+  { name: 'Zoom', category: 'Social' },
+  { name: 'Google Meet', category: 'Social' },
+  { name: 'Microsoft Teams', category: 'Social' },
+  { name: 'Notion', category: 'Social' },
+  { name: 'Loom', category: 'Social' },
+  { name: 'Slack', category: 'Social' },
+  { name: 'Typeform', category: 'Social' },
 
   // Content
-  { name: 'Medium', category: 'Content' },
-  { name: 'Substack', category: 'Content' },
-  { name: 'Behance', category: 'Content' },
-  { name: 'Dribbble', category: 'Content' },
-  { name: 'Ghost', category: 'Content' },
-  { name: 'Hashnode', category: 'Content' },
-  { name: 'Figma', category: 'Content' },
-  { name: 'Mirror', category: 'Content' },
+  { name: 'Medium', category: 'Social' },
+  { name: 'Substack', category: 'Social' },
+  { name: 'Behance', category: 'Social' },
+  { name: 'Dribbble', category: 'Social' },
+  { name: 'Ghost', category: 'Social' },
+  { name: 'Hashnode', category: 'Social' },
+  { name: 'Figma', category: 'Social' },
+  { name: 'Mirror', category: 'Social' },
 
   // Music
-  { name: 'Spotify', category: 'Music' },
-  { name: 'Apple Music', category: 'Music' },
-  { name: 'SoundCloud', category: 'Music' },
-  { name: 'YouTube Music', category: 'Music' },
-  { name: 'Amazon Music', category: 'Music' },
-  { name: 'Tidal', category: 'Music' },
-  { name: 'Deezer', category: 'Music' },
+  { name: 'Spotify', category: 'Social' },
+  { name: 'Apple Music', category: 'Social' },
+  { name: 'SoundCloud', category: 'Social' },
+  { name: 'YouTube Music', category: 'Social' },
+  { name: 'Amazon Music', category: 'Social' },
+  { name: 'Tidal', category: 'Social' },
+  { name: 'Deezer', category: 'Social' },
 
   // Ecommerce
-  { name: 'Amazon', category: 'Ecommerce' },
-  { name: 'Flipkart', category: 'Ecommerce' },
-  { name: 'Shopify Store', category: 'Ecommerce' },
-  { name: 'Etsy', category: 'Ecommerce' },
-  { name: 'Nykaa', category: 'Ecommerce' },
-  { name: 'Myntra', category: 'Ecommerce' },
-  { name: 'Ajio', category: 'Ecommerce' },
-  { name: 'Meesho', category: 'Ecommerce' }
+  { name: 'Amazon', category: 'Social' },
+  { name: 'Flipkart', category: 'Social' },
+  { name: 'Shopify Store', category: 'Social' },
+  { name: 'Etsy', category: 'Social' },
+  { name: 'Nykaa', category: 'Social' },
+  { name: 'Myntra', category: 'Social' },
+  { name: 'Ajio', category: 'Social' },
+  { name: 'Meesho', category: 'Social' }
 ]
 
 const getPlatformDefaultPrefix = (platformName: string): string => {
@@ -1041,13 +1071,28 @@ function UserDashboardContent() {
   })
 
   const [accountForm, setAccountForm] = useState({
-    fullName: ''
+    fullName: '',
+    nfcRedirectToDashboard: false
   })
 
   // Feedback states
   const [savingCard, setSavingCard] = useState(false)
   const [savingAccount, setSavingAccount] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+  // Device sessions & lockout
+  const [deviceLockout, setDeviceLockout] = useState(false)
+  const [loggedSessions, setLoggedSessions] = useState<any[]>([])
+  const [sessionDisconnecting, setSessionDisconnecting] = useState<string | boolean>(false)
+  const [currentSessionId, setCurrentSessionId] = useState('')
+
+  // Account security
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [savingPassword, setSavingPassword] = useState(false)
+
+  // Billing renewals
+  const [renewingPlan, setRenewingPlan] = useState(false)
 
   // Card Visualizer Side State
   const [cardPreviewSide, setCardPreviewSide] = useState<'front' | 'back'>('front')
@@ -1545,9 +1590,40 @@ function UserDashboardContent() {
   const [allAccountFeedsLoading, setAllAccountFeedsLoading] = useState(false)
 
   // Analytics states
-  const [analyticsRange, setAnalyticsRange] = useState<'7d' | '30d' | '90d'>('30d')
+  const [analyticsRange, setAnalyticsRange] = useState<'7d' | '30d' | '90d' | 'custom'>('30d')
+  const [analyticsCustomDate, setAnalyticsCustomDate] = useState<{ from: Date; to: Date | undefined } | undefined>(undefined)
   const [analyticsData, setAnalyticsData] = useState<any>(null)
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
+
+  // Duplicate links from other profiles states
+  const [duplicateLinkFromOthersDialogOpen, setDuplicateLinkFromOthersDialogOpen] = useState(false)
+  const [selectedSourceLinkProfileId, setSelectedSourceLinkProfileId] = useState('')
+  const [selectedSourceLinkId, setSelectedSourceLinkId] = useState('')
+  const [duplicatingLinkFromOthersProgress, setDuplicatingLinkFromOthersProgress] = useState(false)
+  const [allAccountLinks, setAllAccountLinks] = useState<any[]>([])
+  const [allAccountLinksLoading, setAllAccountLinksLoading] = useState(false)
+
+  // Duplicate lead forms from other profiles states
+  const [duplicateLeadFormFromOthersDialogOpen, setDuplicateLeadFormFromOthersDialogOpen] = useState(false)
+  const [selectedSourceLeadFormProfileId, setSelectedSourceLeadFormProfileId] = useState('')
+  const [selectedSourceLeadFormId, setSelectedSourceLeadFormId] = useState('')
+  const [duplicateLeadFormFromOthersConflict, setDuplicateLeadFormFromOthersConflict] = useState(false)
+  const [duplicateLeadFormFromOthersCheckingConflict, setDuplicateLeadFormFromOthersCheckingConflict] = useState(false)
+  const [duplicateLeadFormFromOthersName, setDuplicateLeadFormFromOthersName] = useState('')
+  const [duplicatingLeadFormFromOthersProgress, setDuplicatingLeadFormFromOthersProgress] = useState(false)
+  const [allAccountLeadForms, setAllAccountLeadForms] = useState<any[]>([])
+  const [allAccountLeadFormsLoading, setAllAccountLeadFormsLoading] = useState(false)
+
+  const getEarliestCardDate = () => {
+    if (activeCard?.id === 'all') {
+      if (cards && cards.length > 0) {
+        const dates = cards.map(c => c.created_at ? new Date(c.created_at).getTime() : Date.now())
+        return new Date(Math.min(...dates))
+      }
+      return new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
+    }
+    return activeCard?.created_at ? new Date(activeCard.created_at) : new Date(Date.now() - 365 * 24 * 60 * 60 * 1000)
+  }
 
   const isAllCards = activeCard?.id === 'all'
 
@@ -1578,16 +1654,33 @@ function UserDashboardContent() {
 
     const checkAuthAndFetchData = async () => {
       try {
-        const { data: { user: authUser }, error: authErr } = await supabase.auth.getUser()
-        if (authErr || !authUser) {
+        const { data: { session: authSession }, error: authErr } = await supabase.auth.getSession()
+        const authUser = authSession?.user
+        if (authErr || !authUser || !authSession) {
           if (active) {
             router.push('/login?redirect=/dashboard')
           }
           return
         }
 
+        let parsedSid = ''
         if (active) {
           setUser(authUser)
+          try {
+            const token = authSession.access_token
+            if (token) {
+              const base64Url = token.split('.')[1]
+              const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+              const payload = JSON.parse(window.atob(base64))
+              if (payload.sid) {
+                parsedSid = payload.sid
+                setCurrentSessionId(payload.sid)
+              }
+            }
+          } catch (jwtErr) {
+            console.error('Failed to parse user session ID:', jwtErr)
+          }
+          await syncUserSession(authUser.id, parsedSid)
         }
 
         // Fetch profile
@@ -1599,7 +1692,10 @@ function UserDashboardContent() {
 
         if (accData && active) {
           setProfile(accData)
-          setAccountForm({ fullName: accData.full_name || '' })
+          setAccountForm({
+            fullName: accData.full_name || '',
+            nfcRedirectToDashboard: !!accData.nfc_redirect_to_dashboard
+          })
         }
 
         // Fetch user's orders
@@ -1914,15 +2010,20 @@ function UserDashboardContent() {
       fetchAllAccountProducts()
       fetchProfileFeeds(activeProfile.id)
       fetchAllAccountFeeds()
+      fetchAllAccountLinks()
+      fetchAllAccountLeadForms()
     }
   }, [activeProfile?.id, user?.id])
 
-  // Load analytics when range, tab, active card, or active profile changes
+  // Load analytics when range, custom date, tab, active card, or active profile changes
   useEffect(() => {
     if (activeTab === 'analytics' && user?.id) {
+      if (analyticsRange === 'custom' && !analyticsCustomDate?.from) {
+        return
+      }
       fetchAnalyticsData()
     }
-  }, [activeTab, analyticsRange, activeCard?.id, activeProfile?.id, user?.id])
+  }, [activeTab, analyticsRange, analyticsCustomDate, activeCard?.id, activeProfile?.id, user?.id])
 
   const handleAddPhone = () => {
     setVcardForm(prev => ({
@@ -2327,6 +2428,38 @@ function UserDashboardContent() {
     setLinkSaving(true)
     try {
       const dbCategory = mapUiCategoryToDb(linkForm.category)
+      const isEdit = linkModal.mode === 'edit'
+      const targetLimit = dbCategory === 'payment' ? 5 : 12
+      const limitName = dbCategory === 'payment' ? 'payment' : 'social'
+
+      // Count existing links in the database for each target profile
+      for (const profId of linkModalCheckedProfiles) {
+        const { data: siblingLinks, error: countErr } = await supabase
+          .from('profile_links')
+          .select('id, link_id, social_links(category)')
+          .eq('profile_id', profId);
+
+        if (countErr) throw countErr;
+
+        if (siblingLinks) {
+          const currentCount = siblingLinks.filter((pl: any) => {
+            if (isEdit && linkModal.link && pl.link_id === linkModal.link.link_id) {
+              return false;
+            }
+            const cat = (pl.social_links?.category || 'social').toLowerCase();
+            if (limitName === 'payment') {
+              return cat === 'payment';
+            } else {
+              return cat !== 'payment';
+            }
+          }).length;
+
+          if (currentCount >= targetLimit) {
+            const profName = cardProfiles.find(p => p.id === profId)?.profile_name || 'Target profile';
+            throw new Error(`"${profName}" has reached the maximum limit of ${targetLimit} ${limitName} links.`);
+          }
+        }
+      }
 
       // WhatsApp link phone number normalization
       let finalUrl = linkForm.url.trim()
@@ -3334,6 +3467,218 @@ function UserDashboardContent() {
     setDuplicateFromOthersDialogOpen(true)
   }
 
+  const fetchAllAccountLinks = async () => {
+    if (!user?.id) return
+    setAllAccountLinksLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('profile_links')
+        .select('*, social_links(*)')
+        .order('created_at', { ascending: false })
+      if (!error && data) {
+        const profileIds = cardProfiles.map((p: any) => p.id).filter(Boolean)
+        if (profileIds.length > 0) {
+          const filtered = data.filter((pl: any) => profileIds.includes(pl.profile_id))
+          setAllAccountLinks(filtered)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch all account links:', err)
+    } finally {
+      setAllAccountLinksLoading(false)
+    }
+  }
+
+  const confirmDuplicateLinkFromOthers = async () => {
+    if (!selectedSourceLinkId || !activeProfile?.id || !user?.id) return
+    setDuplicatingLinkFromOthersProgress(true)
+    try {
+      const sourceLink = allAccountLinks.find(l => l.id === selectedSourceLinkId)
+      if (!sourceLink) throw new Error('Source link not found.')
+
+      const { data: existing } = await supabase
+        .from('profile_links')
+        .select('id')
+        .eq('profile_id', activeProfile.id)
+        .eq('link_id', sourceLink.link_id)
+        .maybeSingle()
+
+      if (existing) {
+        throw new Error('This link is already added to your current profile.')
+      }
+
+      // Check limits before duplicating
+      const cat = (sourceLink.social_links?.category || 'social').toLowerCase();
+      const limitName = cat === 'payment' ? 'payment' : 'social';
+      const targetLimit = cat === 'payment' ? 5 : 12;
+
+      // Count existing links for activeProfile
+      const currentCount = profileLinks.filter(pl => {
+        const plCat = (pl.category || pl.social_links?.category || 'social').toLowerCase();
+        if (limitName === 'payment') {
+          return plCat === 'payment';
+        } else {
+          return plCat !== 'payment';
+        }
+      }).length;
+
+      if (currentCount >= targetLimit) {
+        throw new Error(`Your current profile has reached the maximum limit of ${targetLimit} ${limitName} links.`);
+      }
+
+      const { data: siblingList } = await supabase
+        .from('profile_links')
+        .select('sort_order')
+        .eq('profile_id', activeProfile.id)
+      const maxOrder = siblingList && siblingList.length > 0 ? Math.max(...siblingList.map((l: any) => l.sort_order || 0)) + 1 : 0
+
+      const { error } = await supabase
+        .from('profile_links')
+        .insert({
+          profile_id: activeProfile.id,
+          link_id: sourceLink.link_id,
+          sort_order: maxOrder,
+          is_active: false
+        })
+
+      if (error) throw error
+
+      setDuplicateLinkFromOthersDialogOpen(false)
+      fetchProfileLinks(activeProfile.id)
+      fetchAllAccountLinks()
+      setMessage({ type: 'success', text: `Link duplicated successfully!` })
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Failed to duplicate link.' })
+    } finally {
+      setDuplicatingLinkFromOthersProgress(false)
+    }
+  }
+
+  const openDuplicateLinkFromOthersDialog = () => {
+    const sourceProfiles = cardProfiles.filter(profile =>
+      allAccountLinks.some(l => l.profile_id === profile.id) && profile.id !== activeProfile?.id
+    );
+    const firstProfileId = sourceProfiles[0]?.id || ''
+    setSelectedSourceLinkProfileId(firstProfileId)
+
+    if (firstProfileId) {
+      const firstLink = allAccountLinks.find(l => l.profile_id === firstProfileId)
+      if (firstLink) {
+        setSelectedSourceLinkId(firstLink.id)
+      } else {
+        setSelectedSourceLinkId('')
+      }
+    } else {
+      setSelectedSourceLinkId('')
+    }
+    setDuplicateLinkFromOthersDialogOpen(true)
+  }
+
+  const fetchAllAccountLeadForms = async () => {
+    if (!user?.id) return
+    setAllAccountLeadFormsLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('lead_forms')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (!error && data) {
+        const profileIds = cardProfiles.map((p: any) => p.id).filter(Boolean)
+        if (profileIds.length > 0) {
+          const filtered = data.filter((lf: any) => profileIds.includes(lf.profile_id))
+          setAllAccountLeadForms(filtered)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch all account lead forms:', err)
+    } finally {
+      setAllAccountLeadFormsLoading(false)
+    }
+  }
+
+  const checkDuplicateLeadFormFromOthersConflict = async (name: string, targetProfileId: string) => {
+    if (!name.trim()) return
+    setDuplicateLeadFormFromOthersCheckingConflict(true)
+    try {
+      const { data, error } = await supabase
+        .from('lead_forms')
+        .select('id, form_name')
+        .eq('profile_id', targetProfileId)
+      if (!error && data) {
+        const conflict = data.some((f: any) => f.form_name.toLowerCase().trim() === name.toLowerCase().trim())
+        setDuplicateLeadFormFromOthersConflict(conflict)
+      }
+    } catch (err) {
+      console.error('Failed to check lead form duplication conflict:', err)
+    } finally {
+      setDuplicateLeadFormFromOthersCheckingConflict(false)
+    }
+  }
+
+  const confirmDuplicateLeadFormFromOthers = async () => {
+    if (!selectedSourceLeadFormId || !activeProfile?.id || !user?.id) return
+    setDuplicatingLeadFormFromOthersProgress(true)
+    try {
+      const sourceForm = allAccountLeadForms.find(f => f.id === selectedSourceLeadFormId)
+      if (!sourceForm) throw new Error('Source form not found.')
+
+      const { data, error } = await supabase
+        .from('lead_forms')
+        .insert({
+          profile_id: activeProfile.id,
+          account_id: user.id,
+          form_name: duplicateLeadFormFromOthersName.trim(),
+          title: sourceForm.title,
+          subtitle: sourceForm.subtitle,
+          button_label: sourceForm.button_label,
+          is_active: false,
+          fields: sourceForm.fields,
+          product_ids: [],
+          duplicated_from_id: sourceForm.id
+        })
+        .select()
+        .single()
+      if (error) throw error
+
+      setDuplicateLeadFormFromOthersDialogOpen(false)
+      fetchLeadForms(activeProfile.id)
+      fetchAllAccountLeadForms()
+      setMessage({ type: 'success', text: `Lead form duplicated successfully!` })
+    } catch (err: any) {
+      setMessage({ type: 'error', text: err.message || 'Failed to duplicate lead form.' })
+    } finally {
+      setDuplicatingLeadFormFromOthersProgress(false)
+    }
+  }
+
+  const openDuplicateLeadFormFromOthersDialog = () => {
+    const sourceProfiles = cardProfiles.filter(profile =>
+      allAccountLeadForms.some(f => f.profile_id === profile.id) && profile.id !== activeProfile?.id
+    );
+    const firstProfileId = sourceProfiles[0]?.id || ''
+    setSelectedSourceLeadFormProfileId(firstProfileId)
+
+    if (firstProfileId) {
+      const firstForm = allAccountLeadForms.find(f => f.profile_id === firstProfileId)
+      if (firstForm) {
+        setSelectedSourceLeadFormId(firstForm.id)
+        setDuplicateLeadFormFromOthersName(firstForm.form_name || '')
+        if (activeProfile?.id) {
+          checkDuplicateLeadFormFromOthersConflict(firstForm.form_name, activeProfile.id)
+        }
+      } else {
+        setSelectedSourceLeadFormId('')
+        setDuplicateLeadFormFromOthersName('')
+        setDuplicateLeadFormFromOthersConflict(false)
+      }
+    } else {
+      setSelectedSourceLeadFormId('')
+      setDuplicateLeadFormFromOthersName('')
+      setDuplicateLeadFormFromOthersConflict(false)
+    }
+    setDuplicateLeadFormFromOthersDialogOpen(true)
+  }
+
   const handleExportProductsCSV = () => {
     const headers = ['Name', 'Description', 'Price (INR)', 'Net Quantity', 'View Count', 'Rating', 'Review', 'External Link', 'Status']
     const rows = profileProducts.map(p => [
@@ -3403,16 +3748,37 @@ function UserDashboardContent() {
     if (!user?.id) return
     setAnalyticsLoading(true)
     try {
-      const days = analyticsRange === '7d' ? 7 : analyticsRange === '90d' ? 90 : 30
-      const startDate = new Date()
-      startDate.setDate(startDate.getDate() - days)
-      const startDateISO = startDate.toISOString()
+      let days = 30
+      let startDateISO = ''
+      let endDateISO = ''
+
+      if (analyticsRange === 'custom' && analyticsCustomDate?.from) {
+        const start = new Date(analyticsCustomDate.from)
+        start.setHours(0, 0, 0, 0)
+        const end = analyticsCustomDate.to ? new Date(analyticsCustomDate.to) : new Date()
+        end.setHours(23, 59, 59, 999)
+        
+        startDateISO = start.toISOString()
+        endDateISO = end.toISOString()
+        
+        const diffTime = Math.abs(end.getTime() - start.getTime())
+        days = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)))
+      } else {
+        const presetDays = analyticsRange === '7d' ? 7 : analyticsRange === '90d' ? 90 : 30
+        days = presetDays
+        const start = new Date()
+        start.setDate(start.getDate() - presetDays)
+        start.setHours(0, 0, 0, 0)
+        startDateISO = start.toISOString()
+        endDateISO = new Date().toISOString()
+      }
 
       // 1. Fetch taps
       let tapsQuery = supabase
         .from('card_taps')
         .select('*')
         .gte('tapped_at', startDateISO)
+        .lte('tapped_at', endDateISO)
 
       if (isAllCards) {
         const cardIds = cards.map((c: any) => c.id).filter(Boolean)
@@ -3436,6 +3802,7 @@ function UserDashboardContent() {
         .from('link_clicks')
         .select('link_id, profile_id, clicked_at')
         .gte('clicked_at', startDateISO)
+        .lte('clicked_at', endDateISO)
 
       const profileIds = isAllCards
         ? cardProfiles.map((p: any) => p.id).filter(Boolean)
@@ -3455,6 +3822,7 @@ function UserDashboardContent() {
         .from('lead_submissions')
         .select('*')
         .gte('submitted_at', startDateISO)
+        .lte('submitted_at', endDateISO)
 
       if (profileIds.length > 0) {
         leadsQuery = leadsQuery.in('profile_id', profileIds)
@@ -3465,10 +3833,10 @@ function UserDashboardContent() {
       const { data: leadsData, error: leadsErr } = await leadsQuery
       if (leadsErr) throw leadsErr
 
-      // 4. Fetch social links (to read platforms and custom labels/URLs)
+      // 4. Fetch social links from profile_links (joining social_links to read platforms/labels/URLs)
       let linksQuery = supabase
-        .from('social_links')
-        .select('*')
+        .from('profile_links')
+        .select('*, social_links(*)')
 
       if (profileIds.length > 0) {
         linksQuery = linksQuery.in('profile_id', profileIds)
@@ -3489,99 +3857,22 @@ function UserDashboardContent() {
       }
       const { data: allProductsData } = await productsQuery
 
-      // Check if we have real taps. If 0, generate rich simulated activity data.
+      // Check if we have real taps. If 0, indicate there is no data.
       if (!tapsData || tapsData.length === 0) {
-        // Fallback simulated data generator
-        const timeline = []
-        // Seed based on active range
-        for (let i = days - 1; i >= 0; i--) {
-          const d = new Date()
-          d.setDate(d.getDate() - i)
-          const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-          
-          // Generate a smooth pattern with weekends having fewer taps
-          const dayOfWeek = d.getDay()
-          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
-          const baseMultiplier = isWeekend ? 0.4 : 1.0
-          
-          const taps = Math.floor((Math.random() * 15 + 8) * baseMultiplier)
-          const clicks = Math.floor((Math.random() * 8 + 3) * baseMultiplier)
-          const leads = Math.random() > 0.75 ? Math.floor(Math.random() * 2 + 1) : 0
-
-          timeline.push({ date: dateStr, taps, clicks, leads })
-        }
-
-        const totalSimTaps = timeline.reduce((sum, item) => sum + item.taps, 0)
-        const totalSimClicks = timeline.reduce((sum, item) => sum + item.clicks, 0)
-        const totalSimLeads = timeline.reduce((sum, item) => sum + item.leads, 0)
-
-        const osList = [
-          { label: 'iOS / Safari', count: Math.round(totalSimTaps * 0.54), pct: 54, color: '#3f5ce6' },
-          { label: 'Android / Chrome', count: Math.round(totalSimTaps * 0.32), pct: 32, color: '#10b981' },
-          { label: 'Windows', count: Math.round(totalSimTaps * 0.10), pct: 10, color: '#8b5cf6' },
-          { label: 'macOS', count: Math.round(totalSimTaps * 0.04), pct: 4, color: '#f59e0b' },
-        ]
-
-        const deviceList = [
-          { label: 'Mobile', count: Math.round(totalSimTaps * 0.78), pct: 78, color: '#3f5ce6' },
-          { label: 'Desktop', count: Math.round(totalSimTaps * 0.16), pct: 16, color: '#10b981' },
-          { label: 'Tablet', count: Math.round(totalSimTaps * 0.06), pct: 6, color: '#f59e0b' },
-        ]
-
-        const browserList = [
-          { label: 'Safari', count: Math.round(totalSimTaps * 0.51), pct: 51, color: '#3f5ce6' },
-          { label: 'Chrome', count: Math.round(totalSimTaps * 0.35), pct: 35, color: '#10b981' },
-          { label: 'Firefox', count: Math.round(totalSimTaps * 0.09), pct: 9, color: '#8b5cf6' },
-          { label: 'Edge', count: Math.round(totalSimTaps * 0.05), pct: 5, color: '#f59e0b' },
-        ]
-
-        const locationList = [
-          { city: 'Mumbai', country: 'India', count: Math.round(totalSimTaps * 0.38), pct: 38 },
-          { city: 'Bengaluru', country: 'India', count: Math.round(totalSimTaps * 0.28), pct: 28 },
-          { city: 'New Delhi', country: 'India', count: Math.round(totalSimTaps * 0.18), pct: 18 },
-          { city: 'Chennai', country: 'India', count: Math.round(totalSimTaps * 0.11), pct: 11 },
-          { city: 'Pune', country: 'India', count: Math.round(totalSimTaps * 0.05), pct: 5 },
-        ]
-
-        const linksList = [
-          { platform: 'Instagram', label: 'My Instagram', url: '#', clicks: Math.round(totalSimClicks * 0.42), pct: 42 },
-          { platform: 'LinkedIn', label: 'Professional Profile', url: '#', clicks: Math.round(totalSimClicks * 0.28), pct: 28 },
-          { platform: 'WhatsApp', label: 'Chat with Us', url: '#', clicks: Math.round(totalSimClicks * 0.18), pct: 18 },
-          { platform: 'UPI / GPay', label: 'Make Payment', url: '#', clicks: Math.round(totalSimClicks * 0.09), pct: 9 },
-          { platform: 'Website', label: 'Company Portal', url: '#', clicks: Math.round(totalSimClicks * 0.03), pct: 3 },
-        ]
-
-        const productsList = [
-          { name: 'NFC Metal Black Card', views: Math.round(totalSimTaps * 0.65), clicks: Math.round(totalSimClicks * 0.55), ctr: Math.round((totalSimClicks * 0.55) / Math.max(1, totalSimTaps * 0.65) * 100) },
-          { name: 'NFC Classic Wood Card', views: Math.round(totalSimTaps * 0.42), clicks: Math.round(totalSimClicks * 0.32), ctr: Math.round((totalSimClicks * 0.32) / Math.max(1, totalSimTaps * 0.42) * 100) },
-          { name: 'Custom Brand Identity Pack', views: Math.round(totalSimTaps * 0.25), clicks: Math.round(totalSimClicks * 0.15), ctr: Math.round((totalSimClicks * 0.15) / Math.max(1, totalSimTaps * 0.25) * 100) },
-        ]
-
         setAnalyticsData({
-          isSimulated: true,
-          summary: {
-            totalTaps: totalSimTaps,
-            uniqueVisitors: Math.round(totalSimTaps * 0.72),
-            linkClicks: totalSimClicks,
-            leadsCaptured: totalSimLeads,
-            conversionRate: totalSimTaps > 0 ? Math.round((totalSimLeads / totalSimTaps) * 100) : 0,
-            productViews: Math.round(totalSimTaps * 1.3),
-            productClicks: Math.round(totalSimClicks * 1.0),
-          },
-          timeline,
-          os: osList,
-          devices: deviceList,
-          browsers: browserList,
-          locations: locationList,
-          topLinks: linksList,
-          topProducts: productsList,
+          hasNoData: true
         })
       } else {
         // Process real database analytics
         const timelineMap: Record<string, { taps: number, clicks: number, leads: number }> = {}
         for (let i = days - 1; i >= 0; i--) {
           const d = new Date()
-          d.setDate(d.getDate() - i)
+          if (analyticsRange === 'custom' && analyticsCustomDate?.from) {
+            const end = analyticsCustomDate.to ? new Date(analyticsCustomDate.to) : new Date()
+            d.setTime(end.getTime() - i * 24 * 60 * 60 * 1000)
+          } else {
+            d.setDate(d.getDate() - i)
+          }
           const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
           timelineMap[dateStr] = { taps: 0, clicks: 0, leads: 0 }
         }
@@ -3690,16 +3981,18 @@ function UserDashboardContent() {
           linkMap[c.link_id] = (linkMap[c.link_id] || 0) + 1
         })
 
-        const linksList = (allLinksData || []).map((link: any) => {
-          const clicks = (link.click_count || 0) + (linkMap[link.id] || 0)
-          return {
-            platform: link.platform,
-            label: link.label || link.platform,
-            url: link.url,
-            clicks,
-            pct: 0
-          }
-        })
+        const linksList = (allLinksData || [])
+          .filter((link: any) => link.social_links)
+          .map((link: any) => {
+            const clicks = (link.click_count || 0) + (linkMap[link.link_id] || 0)
+            return {
+              platform: link.social_links.platform,
+              label: link.social_links.label || link.social_links.platform,
+              url: link.social_links.url,
+              clicks,
+              pct: 0
+            }
+          })
         const maxClicks = Math.max(...linksList.map(l => l.clicks), 1)
         linksList.forEach(l => {
           l.pct = Math.round((l.clicks / maxClicks) * 100)
@@ -3711,11 +4004,16 @@ function UserDashboardContent() {
           const views = prod.view_count || 0
           const clicks = prod.click_count || 0
           const ctr = views > 0 ? Math.round((clicks / views) * 100) : 0
+          const leads = (leadsData || []).filter((l: any) => 
+            (prod.enquiry_form_id && l.form_id === prod.enquiry_form_id) || 
+            (l.product_id === prod.id)
+          ).length
           return {
             name: prod.name,
             views,
             clicks,
-            ctr
+            ctr,
+            leads
           }
         }).sort((a, b) => b.clicks - a.clicks).slice(0, 5)
 
@@ -4529,13 +4827,18 @@ function UserDashboardContent() {
         .from('accounts')
         .update({
           full_name: accountForm.fullName,
+          nfc_redirect_to_dashboard: accountForm.nfcRedirectToDashboard,
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id)
 
       if (error) throw error
 
-      setProfile((prev: any) => ({ ...prev, full_name: accountForm.fullName }))
+      setProfile((prev: any) => ({
+        ...prev,
+        full_name: accountForm.fullName,
+        nfc_redirect_to_dashboard: accountForm.nfcRedirectToDashboard
+      }))
       setMessage({ type: 'success', text: 'Account settings updated successfully!' })
     } catch (err: any) {
       console.error(err)
@@ -4543,6 +4846,226 @@ function UserDashboardContent() {
     } finally {
       setSavingAccount(false)
     }
+  }
+
+  // Synchronise active user session
+  const syncUserSession = async (userId: string, parsedSid?: string) => {
+    if (typeof window === 'undefined') return
+
+    const activeSid = parsedSid || currentSessionId
+
+    try {
+      const res = await fetch('/api/auth/sessions')
+      if (!res.ok) {
+        throw new Error(`Failed to fetch sessions: ${res.statusText}`)
+      }
+      const data = await res.json()
+      const sessions = data.sessions || []
+
+      setLoggedSessions(sessions)
+
+      if (sessions.length > 2) {
+        // Sort by created_at ascending (oldest first)
+        const sorted = [...sessions].sort((a: any, b: any) => 
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        )
+        const oldestTwoIds = sorted.slice(0, 2).map((s: any) => s.id)
+        
+        if (activeSid && !oldestTwoIds.includes(activeSid)) {
+          setDeviceLockout(true)
+        } else {
+          setDeviceLockout(false)
+        }
+      } else {
+        setDeviceLockout(false)
+      }
+    } catch (e) {
+      console.error('Failed to sync auth session:', e)
+    }
+  }
+
+  // Disconnect another session
+  const disconnectSession = async (sessionId: string) => {
+    setSessionDisconnecting(sessionId)
+    try {
+      const res = await fetch('/api/auth/sessions', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId })
+      })
+
+      if (!res.ok) {
+        throw new Error('Failed to disconnect session')
+      }
+
+      // Refresh sessions
+      if (user) {
+        await syncUserSession(user.id)
+      }
+      setMessage({ type: 'success', text: 'Device disconnected successfully.' })
+    } catch (err: any) {
+      console.error('Error disconnecting session:', err)
+      setMessage({ type: 'error', text: 'Failed to disconnect device. Please try again.' })
+    } finally {
+      setSessionDisconnecting(false)
+    }
+  }
+
+  // Logout current device
+  const handleLogoutCurrentDevice = async () => {
+    setSessionDisconnecting(true)
+    try {
+      await supabase.auth.signOut()
+      window.location.href = '/login'
+    } catch (err) {
+      console.error('Error during logout:', err)
+    } finally {
+      setSessionDisconnecting(false)
+    }
+  }
+
+  // Sign out from all devices
+  const handleSignoutAllDevices = async () => {
+    setSessionDisconnecting(true)
+    try {
+      const res = await fetch('/api/auth/sessions', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ all: true })
+      })
+
+      if (!res.ok) {
+        throw new Error('Failed to sign out all devices')
+      }
+
+      await supabase.auth.signOut()
+      window.location.href = '/login'
+    } catch (err: any) {
+      console.error('Error signing out all devices:', err)
+      setMessage({ type: 'error', text: 'Failed to sign out all devices. Please try again.' })
+    } finally {
+      setSessionDisconnecting(false)
+    }
+  }
+
+  // Change Account Password
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newPassword || !confirmPassword) {
+      setMessage({ type: 'error', text: 'Please fill in both password fields.' })
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setMessage({ type: 'error', text: 'Passwords do not match.' })
+      return
+    }
+    if (newPassword.length < 6) {
+      setMessage({ type: 'error', text: 'Password must be at least 6 characters long.' })
+      return
+    }
+
+    setSavingPassword(true)
+    setMessage(null)
+
+    try {
+      const now = new Date().toISOString()
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+        data: {
+          password_updated_at: now
+        }
+      })
+
+      if (error) throw error
+
+      setNewPassword('')
+      setConfirmPassword('')
+      
+      // Update local user metadata
+      setUser((prev: any) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          user_metadata: {
+            ...prev.user_metadata,
+            password_updated_at: now
+          }
+        }
+      })
+
+      setMessage({ type: 'success', text: 'Password updated successfully.' })
+    } catch (err: any) {
+      console.error('Error updating password:', err)
+      setMessage({ type: 'error', text: err.message || 'Failed to update password.' })
+    } finally {
+      setSavingPassword(false)
+    }
+  }
+
+  // Renew Plan
+  const handleRenewPlan = async () => {
+    setRenewingPlan(true)
+    setMessage(null)
+    try {
+      const res = await fetch('/api/payment/renew-plan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ amountInr: 19900 }) // ₹199
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to renew plan')
+      }
+
+      // Refresh profiles and orders
+      if (user) {
+        const { data: accData } = await supabase
+          .from('accounts')
+          .select('*')
+          .eq('id', user.id)
+          .single()
+
+        if (accData) {
+          setProfile(accData)
+        }
+
+        const { data: ordersData } = await supabase
+          .from('orders')
+          .select('*, order_items(*)')
+          .eq('account_id', user.id)
+          .order('created_at', { ascending: false })
+
+        if (ordersData) {
+          setUserOrders(ordersData)
+        }
+      }
+
+      setMessage({ type: 'success', text: `Plan renewed successfully! New invoice number is ${data.invoiceNumber}.` })
+    } catch (err: any) {
+      console.error('Plan renewal failed:', err)
+      setMessage({ type: 'error', text: err.message || 'Failed to renew plan. Please try again.' })
+    } finally {
+      setRenewingPlan(false)
+    }
+  }
+
+  const isExpiringSoon = () => {
+    if (!profile?.plan_expires_at) return false
+    const expiryDate = new Date(profile.plan_expires_at)
+    const today = new Date()
+    const diffTime = expiryDate.getTime() - today.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays >= 0 && diffDays <= 3
+  }
+
+  const isExpired = () => {
+    if (!profile?.plan_expires_at) return false
+    const expiryDate = new Date(profile.plan_expires_at)
+    const today = new Date()
+    return expiryDate.getTime() < today.getTime()
   }
 
   // Open Create Profile Modal
@@ -5110,6 +5633,73 @@ function UserDashboardContent() {
               ))}
             </div>
           </main>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Device Lockout Check ──────────────────────────────────────
+  if (deviceLockout) {
+    return (
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-md">
+        <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-8 max-w-lg w-full mx-4 shadow-2xl text-left space-y-6 animate-fadeIn">
+          <div className="flex items-center gap-3 text-red-500">
+            <AlertCircle size={28} className="shrink-0" />
+            <h2 className="text-xl font-black text-white uppercase tracking-wide">Device Limit Exceeded</h2>
+          </div>
+          
+          <p className="text-sm text-zinc-400 leading-relaxed font-medium">
+            You are logged into more than the maximum allowed <strong className="text-white">2 active devices</strong>. To access your dashboard on this device, please disconnect one of your other active sessions below, or log out of this session.
+          </p>
+
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Active Sessions</h3>
+            <div className="divide-y divide-zinc-800/60 border border-zinc-800 rounded-xl overflow-hidden bg-zinc-900/40">
+              {loggedSessions.map((session) => {
+                const isCurrent = session.id === currentSessionId
+                const { browser, os } = getBrowserAndOS(session.user_agent)
+                return (
+                  <div key={session.id} className="p-4 flex items-center justify-between gap-4 text-xs">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 font-bold text-zinc-200">
+                        <span>{os}</span>
+                        <span className="text-zinc-700 font-bold">•</span>
+                        <span>{browser}</span>
+                        {isCurrent && (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#3f5ce6]/20 text-[#3f5ce6] border border-[#3f5ce6]/30">
+                            Current Device
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-zinc-500">
+                        Last Active: {session.updated_at ? new Date(session.updated_at).toLocaleString() : new Date(session.created_at).toLocaleString()}
+                      </p>
+                    </div>
+
+                    {!isCurrent && (
+                      <button
+                        onClick={() => disconnectSession(session.id)}
+                        disabled={!!sessionDisconnecting}
+                        className="px-3 py-1.5 rounded-lg border border-red-500/20 bg-red-500/10 hover:bg-red-500/25 text-red-400 text-[10px] font-bold transition-all disabled:opacity-50 cursor-pointer"
+                      >
+                        {sessionDisconnecting === session.id ? 'Disconnecting...' : 'Disconnect'}
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button
+              onClick={handleLogoutCurrentDevice}
+              disabled={!!sessionDisconnecting}
+              className="px-4 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-200 text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
+            >
+              Sign Out of this Device
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -7581,7 +8171,7 @@ function UserDashboardContent() {
                   <div className="hidden sm:block">
                     <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Manage Links</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Add, edit, remove, or reorder the links displayed on your public digital card profile page. (Links for <span className="font-semibold text-foreground">{activeProfile?.profile_name || 'selected profile'}</span>)
+                      Add, edit, remove, or reorder the links displayed on your public digital card profile page. You can add up to <span className="font-bold text-foreground">12 social links</span> and <span className="font-bold text-foreground">5 payment links</span>.
                     </p>
                   </div>
                   <button
@@ -7610,24 +8200,31 @@ function UserDashboardContent() {
                         Add social, payment or website links to show on your card page.
                       </p>
                     </div>
-                    <button
-                      onClick={openAddLink}
-                      className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#3f5ce6] hover:bg-[#3050d8] text-white text-xs font-semibold shadow-md transition-all cursor-pointer"
-                    >
-                      <Plus size={13} /> Add your first link
-                    </button>
+                    <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
+                      <button
+                        onClick={openAddLink}
+                        className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#3f5ce6] hover:bg-[#3050d8] text-white text-xs font-semibold shadow-md transition-all cursor-pointer"
+                      >
+                        <Plus size={13} /> Add your first link
+                      </button>
+                      {(() => {
+                        const otherLinks = allAccountLinks.filter(l => l.profile_id !== activeProfile?.id);
+                        return otherLinks.length > 0 && (
+                          <button
+                            onClick={openDuplicateLinkFromOthersDialog}
+                            className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl border border-border hover:bg-muted text-foreground text-xs font-semibold transition-all shadow-sm cursor-pointer bg-card"
+                          >
+                            <Layers size={13} /> Duplicate from Another Profile
+                          </button>
+                        );
+                      })()}
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {([
                       { key: 'Social', label: 'Social', icon: <Share2 size={13} />, bg: 'bg-blue-500/15', tc: 'text-blue-400' },
-                      { key: 'Messaging', label: 'Messaging', icon: <MessageCircle size={13} />, bg: 'bg-green-500/15', tc: 'text-green-400' },
-                      { key: 'Developer', label: 'Developer', icon: <Code2 size={13} />, bg: 'bg-violet-500/15', tc: 'text-violet-400' },
-                      { key: 'Business', label: 'Business', icon: <Briefcase size={13} />, bg: 'bg-amber-500/15', tc: 'text-amber-400' },
                       { key: 'Payments', label: 'Payments', icon: <CreditCard size={13} />, bg: 'bg-emerald-500/15', tc: 'text-emerald-400' },
-                      { key: 'Content', label: 'Content', icon: <FileText size={13} />, bg: 'bg-pink-500/15', tc: 'text-pink-400' },
-                      { key: 'Music', label: 'Music', icon: <Music size={13} />, bg: 'bg-purple-500/15', tc: 'text-purple-400' },
-                      { key: 'Ecommerce', label: 'E-commerce', icon: <ShoppingBag size={13} />, bg: 'bg-orange-500/15', tc: 'text-orange-400' },
                     ] as const).map(({ key: catKey, label, icon, bg, tc }) => {
                       const catLinks = profileLinks.filter(l => getUiCategory(l.category || 'social', l.platform || '') === catKey)
                       if (catLinks.length === 0) return null
@@ -7803,13 +8400,7 @@ function UserDashboardContent() {
                         {[
                           { id: 'All', label: 'Popular', icon: <Zap size={14} />, bg: 'bg-[#3f5ce6]/15', tc: 'text-[#3f5ce6] dark:text-[#5c75ea]', border: 'border-[#3f5ce6]/35' },
                           { id: 'Social', label: 'Social', icon: <Share2 size={14} />, bg: 'bg-blue-500/15', tc: 'text-blue-600 dark:text-blue-400', border: 'border-blue-500/35' },
-                          { id: 'Messaging', label: 'Messaging', icon: <MessageCircle size={14} />, bg: 'bg-green-500/15', tc: 'text-green-600 dark:text-green-400', border: 'border-green-500/35' },
-                          { id: 'Payments', label: 'Payments', icon: <CreditCard size={14} />, bg: 'bg-emerald-500/15', tc: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/35' },
-                          { id: 'Developer', label: 'Developer', icon: <Code2 size={14} />, bg: 'bg-violet-500/15', tc: 'text-violet-600 dark:text-violet-400', border: 'border-violet-500/35' },
-                          { id: 'Business', label: 'Business', icon: <Briefcase size={14} />, bg: 'bg-amber-500/15', tc: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500/35' },
-                          { id: 'Content', label: 'Content', icon: <FileText size={14} />, bg: 'bg-pink-500/15', tc: 'text-pink-600 dark:text-pink-400', border: 'border-pink-500/35' },
-                          { id: 'Music', label: 'Music', icon: <Music size={14} />, bg: 'bg-purple-500/15', tc: 'text-purple-600 dark:text-purple-400', border: 'border-purple-500/35' },
-                          { id: 'Ecommerce', label: 'E-commerce', icon: <ShoppingBag size={14} />, bg: 'bg-orange-500/15', tc: 'text-orange-600 dark:text-orange-400', border: 'border-orange-500/35' }
+                          { id: 'Payments', label: 'Payments', icon: <CreditCard size={14} />, bg: 'bg-emerald-500/15', tc: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/35' }
                         ].map(tab => {
                           const isActive = activePlatformTab === tab.id;
                           return (
@@ -9150,9 +9741,22 @@ function UserDashboardContent() {
                                 Create your first lead form to start capturing enquiries from your card page.
                               </p>
                             </div>
-                            <button onClick={() => openFormBuilder()} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#3f5ce6] hover:bg-[#3050d8] text-white text-xs font-semibold shadow-md transition-all cursor-pointer">
-                              <Plus size={13} /> Create First Form
-                            </button>
+                            <div className="flex flex-col sm:flex-row gap-3 items-center justify-center">
+                              <button onClick={() => openFormBuilder()} className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#3f5ce6] hover:bg-[#3050d8] text-white text-xs font-semibold shadow-md transition-all cursor-pointer">
+                                <Plus size={13} /> Create First Form
+                              </button>
+                              {(() => {
+                                const otherForms = allAccountLeadForms.filter(f => f.profile_id !== activeProfile?.id);
+                                return otherForms.length > 0 && (
+                                  <button
+                                    onClick={openDuplicateLeadFormFromOthersDialog}
+                                    className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl border border-border hover:bg-muted text-foreground text-xs font-semibold transition-all shadow-sm cursor-pointer bg-card"
+                                  >
+                                    <Layers size={13} /> Duplicate from Another Profile
+                                  </button>
+                                );
+                              })()}
+                            </div>
                           </div>
                         ) : (
                           <div className="space-y-3">
@@ -10301,6 +10905,261 @@ function UserDashboardContent() {
                     >
                       {duplicatingFeedFromOthersProgress ? (
                         <><Loader2 size={12} className="animate-spin" /> Duplicating…</>
+                      ) : (
+                        <><Layers size={12} /> Duplicate</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ═══ LINK DUPLICATE FROM OTHERS DIALOG ═══════════════════════ */}
+            {duplicateLinkFromOthersDialogOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+                <div className="bg-background dark:bg-[#18181b] border border-border dark:border-zinc-800 rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl animate-scaleUp text-left">
+                  <div className="p-5 border-b border-border dark:border-zinc-800 flex items-center justify-between">
+                    <h3 className="font-bold text-sm text-foreground uppercase tracking-wider">Duplicate Link From Another Profile</h3>
+                    <button onClick={() => setDuplicateLinkFromOthersDialogOpen(false)} className="text-zinc-400 hover:text-foreground transition-colors cursor-pointer"><X size={16} /></button>
+                  </div>
+                  <div className="p-5 space-y-4">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Select a social, payment, or custom link from another profile to copy it to your current active profile.
+                    </p>
+
+                    {/* Dropdown: Source Profile */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Source Profile</label>
+                      {(() => {
+                        const sourceProfiles = cardProfiles.filter(profile =>
+                          allAccountLinks.some(l => l.profile_id === profile.id) && profile.id !== activeProfile?.id
+                        );
+                        return (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="w-full flex items-center justify-between px-3 py-2 rounded-xl border border-input dark:border-zinc-800 bg-background dark:bg-zinc-900/40 text-xs text-foreground focus:outline-none focus:border-[#3f5ce6] focus:ring-1 focus:ring-[#3f5ce6] cursor-pointer transition-all text-left">
+                                <span className="truncate">
+                                  {sourceProfiles.find((p: any) => p.id === selectedSourceLinkProfileId)?.profile_name || 'Select source profile'}
+                                </span>
+                                <ChevronDown size={14} className="text-muted-foreground shrink-0 ml-auto" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="w-[340px] z-[150]">
+                              {sourceProfiles.map((p: any) => (
+                                <DropdownMenuItem
+                                  key={p.id}
+                                  onClick={() => {
+                                    setSelectedSourceLinkProfileId(p.id)
+                                    const firstLink = allAccountLinks.find(l => l.profile_id === p.id)
+                                    if (firstLink) {
+                                      setSelectedSourceLinkId(firstLink.id)
+                                    } else {
+                                      setSelectedSourceLinkId('')
+                                    }
+                                  }}
+                                  className="text-xs cursor-pointer"
+                                >
+                                  {p.profile_name}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Dropdown: Link */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Select Link to Copy</label>
+                      {(() => {
+                        const sourceLinks = allAccountLinks.filter(l => l.profile_id === selectedSourceLinkProfileId);
+                        const selectedLink = sourceLinks.find(l => l.id === selectedSourceLinkId);
+                        return (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button disabled={!selectedSourceLinkProfileId} className="w-full flex items-center justify-between px-3 py-2 rounded-xl border border-input dark:border-zinc-800 bg-background dark:bg-zinc-900/40 text-xs text-foreground focus:outline-none focus:border-[#3f5ce6] focus:ring-1 focus:ring-[#3f5ce6] cursor-pointer transition-all text-left disabled:opacity-50">
+                                <span className="truncate">
+                                  {selectedLink ? `${(selectedLink.social_links?.platform || '').toUpperCase()}: ${selectedLink.social_links?.label || selectedLink.social_links?.url || 'Link'}` : 'Select link'}
+                                </span>
+                                <ChevronDown size={14} className="text-muted-foreground shrink-0 ml-auto" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="w-[340px] z-[150]">
+                              {sourceLinks.map((link: any) => (
+                                <DropdownMenuItem
+                                  key={link.id}
+                                  onClick={() => setSelectedSourceLinkId(link.id)}
+                                  className="text-xs cursor-pointer"
+                                >
+                                  <div className="flex flex-col text-left gap-0.5">
+                                    <span className="font-bold text-[10px] uppercase text-[#3f5ce6]">{link.social_links?.platform || 'link'}</span>
+                                    <span className="truncate max-w-[300px]">{link.social_links?.label || link.social_links?.url || 'Link'}</span>
+                                  </div>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                  <div className="p-5 border-t border-border dark:border-zinc-800 flex gap-3">
+                    <button onClick={() => setDuplicateLinkFromOthersDialogOpen(false)} className="flex-1 py-2 text-xs font-semibold rounded-lg border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer">Cancel</button>
+                    <button
+                      onClick={confirmDuplicateLinkFromOthers}
+                      disabled={duplicatingLinkFromOthersProgress || !selectedSourceLinkId}
+                      className="flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 text-white bg-[#3f5ce6] hover:bg-[#3050d8] disabled:opacity-50"
+                    >
+                      {duplicatingLinkFromOthersProgress ? (
+                        <><Loader2 size={12} className="animate-spin" /> Duplicating…</>
+                      ) : (
+                        <><Layers size={12} /> Duplicate</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ═══ LEAD FORM DUPLICATE FROM OTHERS DIALOG ═══════════════════ */}
+            {duplicateLeadFormFromOthersDialogOpen && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+                <div className="bg-background dark:bg-[#18181b] border border-border dark:border-zinc-800 rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl animate-scaleUp text-left">
+                  <div className="p-5 border-b border-border dark:border-zinc-800 flex items-center justify-between">
+                    <h3 className="font-bold text-sm text-foreground uppercase tracking-wider">Duplicate Lead Form From Another Profile</h3>
+                    <button onClick={() => setDuplicateLeadFormFromOthersDialogOpen(false)} className="text-zinc-400 hover:text-foreground transition-colors cursor-pointer"><X size={16} /></button>
+                  </div>
+                  <div className="p-5 space-y-4">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Select a lead capture form from another profile to duplicate it to your current active profile.
+                    </p>
+
+                    {/* Dropdown: Source Profile */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Source Profile</label>
+                      {(() => {
+                        const sourceProfiles = cardProfiles.filter(profile =>
+                          allAccountLeadForms.some(f => f.profile_id === profile.id) && profile.id !== activeProfile?.id
+                        );
+                        return (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="w-full flex items-center justify-between px-3 py-2 rounded-xl border border-input dark:border-zinc-800 bg-background dark:bg-zinc-900/40 text-xs text-foreground focus:outline-none focus:border-[#3f5ce6] focus:ring-1 focus:ring-[#3f5ce6] cursor-pointer transition-all text-left">
+                                <span className="truncate">
+                                  {sourceProfiles.find((p: any) => p.id === selectedSourceLeadFormProfileId)?.profile_name || 'Select source profile'}
+                                </span>
+                                <ChevronDown size={14} className="text-muted-foreground shrink-0 ml-auto" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="w-[340px] z-[150]">
+                              {sourceProfiles.map((p: any) => (
+                                <DropdownMenuItem
+                                  key={p.id}
+                                  onClick={() => {
+                                    setSelectedSourceLeadFormProfileId(p.id)
+                                    const firstForm = allAccountLeadForms.find(f => f.profile_id === p.id)
+                                    if (firstForm) {
+                                      setSelectedSourceLeadFormId(firstForm.id)
+                                      setDuplicateLeadFormFromOthersName(firstForm.form_name || '')
+                                      if (activeProfile?.id) {
+                                        checkDuplicateLeadFormFromOthersConflict(firstForm.form_name, activeProfile.id)
+                                      }
+                                    } else {
+                                      setSelectedSourceLeadFormId('')
+                                      setDuplicateLeadFormFromOthersName('')
+                                      setDuplicateLeadFormFromOthersConflict(false)
+                                    }
+                                  }}
+                                  className="text-xs cursor-pointer"
+                                >
+                                  {p.profile_name}
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Dropdown: Form */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Select Form to Copy</label>
+                      {(() => {
+                        const sourceForms = allAccountLeadForms.filter(f => f.profile_id === selectedSourceLeadFormProfileId);
+                        const selectedForm = sourceForms.find(f => f.id === selectedSourceLeadFormId);
+                        return (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button disabled={!selectedSourceLeadFormProfileId} className="w-full flex items-center justify-between px-3 py-2 rounded-xl border border-input dark:border-zinc-800 bg-background dark:bg-zinc-900/40 text-xs text-foreground focus:outline-none focus:border-[#3f5ce6] focus:ring-1 focus:ring-[#3f5ce6] cursor-pointer transition-all text-left disabled:opacity-50">
+                                <span className="truncate">
+                                  {selectedForm ? selectedForm.form_name : 'Select form'}
+                                </span>
+                                <ChevronDown size={14} className="text-muted-foreground shrink-0 ml-auto" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="w-[340px] z-[150]">
+                              {sourceForms.map((form: any) => (
+                                <DropdownMenuItem
+                                  key={form.id}
+                                  onClick={() => {
+                                    setSelectedSourceLeadFormId(form.id)
+                                    setDuplicateLeadFormFromOthersName(form.form_name || '')
+                                    if (activeProfile?.id) {
+                                      checkDuplicateLeadFormFromOthersConflict(form.form_name, activeProfile.id)
+                                    }
+                                  }}
+                                  className="text-xs cursor-pointer"
+                                >
+                                  <div className="flex flex-col text-left gap-0.5">
+                                    <span className="font-bold text-xs">{form.form_name}</span>
+                                    <span className="text-[10px] text-muted-foreground truncate max-w-[300px]">{form.title || '(No title)'}</span>
+                                  </div>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        );
+                      })()}
+                    </div>
+
+                    {/* New Form Name Input */}
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Duplicate Form Name</label>
+                      <input
+                        type="text"
+                        value={duplicateLeadFormFromOthersName}
+                        onChange={(e) => {
+                          const newName = e.target.value
+                          setDuplicateLeadFormFromOthersName(newName)
+                          if (activeProfile?.id) {
+                            checkDuplicateLeadFormFromOthersConflict(newName, activeProfile.id)
+                          }
+                        }}
+                        placeholder="Enter form name"
+                        className="w-full px-3 py-2 rounded-xl border border-input dark:border-zinc-800 bg-background dark:bg-zinc-900/40 text-xs text-foreground focus:outline-none focus:border-[#3f5ce6] focus:ring-1 focus:ring-[#3f5ce6] transition-all"
+                      />
+                      {duplicateLeadFormFromOthersCheckingConflict ? (
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Loader2 size={10} className="animate-spin" /> Checking conflicts…</span>
+                      ) : duplicateLeadFormFromOthersConflict ? (
+                        <span className="text-[10px] text-red-400 font-semibold flex items-center gap-1"><AlertCircle size={10} /> A form with this name already exists on this profile.</span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="p-5 border-t border-border dark:border-zinc-800 flex gap-3">
+                    <button onClick={() => setDuplicateLeadFormFromOthersDialogOpen(false)} className="flex-1 py-2 text-xs font-semibold rounded-lg border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer">Cancel</button>
+                    <button
+                      onClick={confirmDuplicateLeadFormFromOthers}
+                      disabled={duplicatingLeadFormFromOthersProgress || !selectedSourceLeadFormId || !duplicateLeadFormFromOthersName.trim() || duplicateLeadFormFromOthersConflict}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 text-white ${
+                        duplicateLeadFormFromOthersConflict
+                          ? 'bg-red-500 hover:bg-red-600 disabled:opacity-50'
+                          : 'bg-[#3f5ce6] hover:bg-[#3050d8] disabled:opacity-50'
+                      }`}
+                    >
+                      {duplicatingLeadFormFromOthersProgress ? (
+                        <><Loader2 size={12} className="animate-spin" /> Duplicating…</>
+                      ) : duplicateLeadFormFromOthersConflict ? (
+                        <><AlertCircle size={12} /> Conflicting Name</>
                       ) : (
                         <><Layers size={12} /> Duplicate</>
                       )}
@@ -11757,14 +12616,10 @@ function UserDashboardContent() {
                   <div className="hidden sm:block">
                     <h3 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
                       Analytics 
-                      {analyticsData && (
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold border uppercase tracking-wider ${
-                          analyticsData.isSimulated 
-                            ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' 
-                            : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
-                        }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${analyticsData.isSimulated ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 animate-ping'}`} />
-                          {analyticsData.isSimulated ? 'Demo Data' : 'Live Data'}
+                      {analyticsData && !analyticsData.hasNoData && (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold border border-emerald-500/20 bg-emerald-500/10 text-emerald-500 uppercase tracking-wider">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                          Live Analytics
                         </span>
                       )}
                     </h3>
@@ -11775,20 +12630,70 @@ function UserDashboardContent() {
                     </p>
                   </div>
                   {/* Date range */}
-                  <div className="flex gap-1">
-                    {(['7d', '30d', '90d'] as const).map((r) => (
-                      <button 
-                        key={r} 
-                        onClick={() => setAnalyticsRange(r)}
-                        className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                          analyticsRange === r 
-                            ? 'bg-[#3f5ce6] text-white shadow-sm' 
-                            : 'bg-card border border-border text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
-                        {r}
-                      </button>
-                    ))}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <div className="flex gap-1">
+                      {(['7d', '30d', '90d'] as const).map((r) => (
+                        <button 
+                          key={r} 
+                          onClick={() => {
+                            setAnalyticsRange(r)
+                            setAnalyticsCustomDate(undefined)
+                          }}
+                          className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                            analyticsRange === r 
+                              ? 'bg-[#3f5ce6] text-white shadow-sm' 
+                              : 'bg-card border border-border text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          {r}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Custom Date Range Picker */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 bg-card border border-border ${
+                            analyticsRange === 'custom' 
+                              ? 'border-[#3f5ce6] text-[#3f5ce6] bg-[#3f5ce6]/5' 
+                              : 'text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          <Calendar className="h-3 w-3" />
+                          {analyticsCustomDate?.from ? (
+                            analyticsCustomDate.to ? (
+                              <>
+                                {format(analyticsCustomDate.from, "MMM dd")} - {format(analyticsCustomDate.to, "MMM dd")}
+                              </>
+                            ) : (
+                              format(analyticsCustomDate.from, "MMM dd")
+                            )
+                          ) : (
+                            <span>Custom Date</span>
+                          )}
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <CalendarComponent
+                          initialFocus
+                          mode="range"
+                          defaultMonth={analyticsCustomDate?.from || new Date()}
+                          selected={analyticsCustomDate}
+                          onSelect={(range: any) => {
+                            setAnalyticsCustomDate(range)
+                            if (range?.from) {
+                              setAnalyticsRange('custom')
+                            }
+                          }}
+                          numberOfMonths={2}
+                          disabled={(date) => {
+                            const earliest = getEarliestCardDate()
+                            return date > new Date() || date < earliest
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                 </div>
 
@@ -11806,6 +12711,18 @@ function UserDashboardContent() {
                       <h4 className="text-sm font-bold text-foreground">No Analytics Loaded</h4>
                       <p className="text-xs text-muted-foreground">
                         Failed to fetch analytics metrics or setup timeline. Please refresh the dashboard.
+                      </p>
+                    </div>
+                  </div>
+                ) : analyticsData.hasNoData ? (
+                  <div className="text-center py-20 bg-card rounded-2xl border border-dashed border-border space-y-4 max-w-lg mx-auto p-6 animate-fadeIn">
+                    <div className="w-12 h-12 rounded-full bg-[#3f5ce6]/10 text-[#3f5ce6] flex items-center justify-center mx-auto">
+                      <BarChart3 size={20} />
+                    </div>
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-bold text-foreground">No Analytics Data Yet</h4>
+                      <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                        Your digital profile hasn't received any taps or interactions yet. Share your profile URL or scan your physical card to start capturing live analytics!
                       </p>
                     </div>
                   </div>
@@ -11844,7 +12761,11 @@ function UserDashboardContent() {
                     <div className="bg-card border border-border rounded-xl p-6 space-y-5">
                       <div className="flex justify-between items-center">
                         <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                          Tap Timeline — Last {analyticsRange === '7d' ? '7' : analyticsRange === '90d' ? '90' : '30'} Days
+                          Tap Timeline — {
+                            analyticsRange === 'custom' 
+                              ? 'Custom Range' 
+                              : `Last ${analyticsRange === '7d' ? '7' : analyticsRange === '90d' ? '90' : '30'} Days`
+                          }
                         </h4>
                         <span className="text-[10px] font-medium text-muted-foreground">
                           Hover bars to view details
@@ -12018,13 +12939,14 @@ function UserDashboardContent() {
                               <th className="pb-3 w-1/2">Product Offering</th>
                               <th className="pb-3 text-center">Views</th>
                               <th className="pb-3 text-center">Clicks</th>
+                              <th className="pb-3 text-center">Leads</th>
                               <th className="pb-3 text-right">Click-Through Rate</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-border/40">
                             {analyticsData.topProducts.length === 0 ? (
                               <tr>
-                                <td colSpan={4} className="py-6 text-center text-muted-foreground">No catalog product performance logged yet.</td>
+                                <td colSpan={5} className="py-6 text-center text-muted-foreground">No catalog product performance logged yet.</td>
                               </tr>
                             ) : (
                               analyticsData.topProducts.map((p: any, i: number) => (
@@ -12032,6 +12954,7 @@ function UserDashboardContent() {
                                   <td className="py-3 font-bold text-foreground">{p.name}</td>
                                   <td className="py-3 text-center text-muted-foreground font-semibold">{p.views}</td>
                                   <td className="py-3 text-center text-muted-foreground font-semibold">{p.clicks}</td>
+                                  <td className="py-3 text-center text-muted-foreground font-semibold">{p.leads || 0}</td>
                                   <td className="py-3 text-right">
                                     <div className="inline-flex items-center gap-1.5 font-black text-foreground">
                                       <span className={`w-1.5 h-1.5 rounded-full ${p.ctr > 20 ? 'bg-emerald-500' : p.ctr > 10 ? 'bg-blue-500' : 'bg-amber-500'}`} />
@@ -12054,107 +12977,325 @@ function UserDashboardContent() {
             {/* TAB: SETTINGS                                            */}
             {/* ══════════════════════════════════════════════════════════ */}
             {activeTab === 'settings' && (
-              <div className="max-w-2xl space-y-6 animate-fadeIn text-left">
-                {/* Account */}
-                <div className="bg-card border border-border rounded-xl p-6 space-y-5">
-                  <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Account Settings</h3>
+              <div className="max-w-3xl space-y-6 animate-fadeIn text-left pb-12">
+                <div className="flex flex-col gap-1">
+                  <h2 className="text-xl font-bold text-foreground">Account Settings</h2>
+                  <p className="text-xs text-muted-foreground">Manage your personal information, security preferences, active devices, and subscription billing.</p>
+                </div>
+
+                {/* 1. Personal Profile Card */}
+                <div className="bg-card border border-border/60 rounded-2xl p-6 shadow-xs space-y-5">
+                  <div className="flex items-center gap-3 border-b border-border/40 pb-4">
+                    <div className="w-8 h-8 rounded-lg bg-[#3f5ce6]/10 text-[#3f5ce6] flex items-center justify-center">
+                      <User size={16} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground">Personal Information</h3>
+                      <p className="text-[10px] text-muted-foreground">Update your name and view registered account email.</p>
+                    </div>
+                  </div>
+
                   <form onSubmit={handleSaveAccount} className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-muted-foreground">Registered Email</label>
-                      <input
-                        type="email"
-                        disabled
-                        value={user?.email || ''}
-                        className="w-full px-3 py-2 rounded-lg border border-border bg-muted/30 text-sm text-muted-foreground focus:outline-none cursor-not-allowed"
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-muted-foreground">Registered Email</label>
+                        <input
+                          type="email"
+                          disabled
+                          value={user?.email || ''}
+                          className="w-full px-3 py-2 rounded-lg border border-border bg-muted/40 text-sm text-muted-foreground focus:outline-none cursor-not-allowed"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-muted-foreground">Full Name</label>
+                        <input
+                          type="text"
+                          required
+                          value={accountForm.fullName || ''}
+                          onChange={(e) => setAccountForm(prev => ({ ...prev, fullName: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:ring-1 focus:ring-[#3f5ce6]/20 focus:outline-none placeholder-muted-foreground/60 transition-colors"
+                          placeholder="Your full name"
+                        />
+                      </div>
+                      <div className="space-y-1 sm:col-span-2 pt-2">
+                        <label className="flex items-start gap-2.5 text-xs font-semibold text-foreground cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={accountForm.nfcRedirectToDashboard || false}
+                            onChange={(e) => setAccountForm(prev => ({ ...prev, nfcRedirectToDashboard: e.target.checked }))}
+                            className="mt-0.5 rounded border-input text-[#3f5ce6] focus:ring-[#3f5ce6]/20"
+                          />
+                          <div>
+                            <span>Redirect to Dashboard on NFC Tap</span>
+                            <p className="text-[10px] text-muted-foreground font-normal mt-0.5 leading-relaxed">
+                              When enabled, tapping or scanning your physical NFC card on a device where your Envitra account is logged in will automatically redirect you directly to your management dashboard instead of loading your public profile card.
+                            </p>
+                          </div>
+                        </label>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-muted-foreground">Full Name</label>
-                      <input
-                        type="text"
-                        required
-                        value={accountForm.fullName}
-                        onChange={(e) => setAccountForm({ fullName: e.target.value })}
-                        className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:ring-1 focus:ring-[#3f5ce6]/20 focus:outline-none placeholder-muted-foreground/60 transition-colors"
-                        placeholder="Your full name"
-                      />
-                    </div>
-                    <div className="flex justify-end">
+                    <div className="flex justify-end pt-2">
                       <button
                         type="submit"
                         disabled={savingAccount}
-                        className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg bg-[#3f5ce6] hover:bg-[#3050d8] text-white text-xs font-semibold cursor-pointer shadow-md transition-all active:scale-98 disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#3f5ce6] hover:bg-[#3050d8] text-white text-xs font-semibold cursor-pointer shadow-md transition-all active:scale-98 disabled:opacity-50"
                       >
-                        {savingAccount ? <><div className="animate-spin rounded-full h-3 w-3 border-t-2 border-white" /> Saving...</> : <><Save size={13} /> Save Changes</>}
+                        {savingAccount ? (
+                          <>
+                            <Loader2 className="animate-spin" size={13} /> Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save size={13} /> Save Changes
+                          </>
+                        )}
                       </button>
                     </div>
                   </form>
                 </div>
 
-                {/* Plan */}
-                <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-                  <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Plan & Billing</h3>
-                  <div className="flex items-center justify-between">
+                {/* 2. Change Password Security Card */}
+                <div className="bg-card border border-border/60 rounded-2xl p-6 shadow-xs space-y-5">
+                  <div className="flex items-center gap-3 border-b border-border/40 pb-4 justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-[#3f5ce6]/10 text-[#3f5ce6] flex items-center justify-center">
+                        <Lock size={16} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-foreground">Password & Security</h3>
+                        <p className="text-[10px] text-muted-foreground">Update your account login password.</p>
+                      </div>
+                    </div>
+                    {user?.user_metadata?.password_updated_at && (
+                      <span className="text-[10px] text-muted-foreground bg-muted/60 px-2.5 py-1 rounded-md border border-border/40">
+                        Last updated: {new Date(user.user_metadata.password_updated_at).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+
+                  <form onSubmit={handleChangePassword} className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-muted-foreground">New Password</label>
+                        <input
+                          type="password"
+                          required
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:ring-1 focus:ring-[#3f5ce6]/20 focus:outline-none placeholder-muted-foreground/60 transition-colors"
+                          placeholder="Min 6 characters"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs font-semibold text-muted-foreground">Confirm New Password</label>
+                        <input
+                          type="password"
+                          required
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:ring-1 focus:ring-[#3f5ce6]/20 focus:outline-none placeholder-muted-foreground/60 transition-colors"
+                          placeholder="Confirm new password"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end pt-2">
+                      <button
+                        type="submit"
+                        disabled={savingPassword}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#3f5ce6] hover:bg-[#3050d8] text-white text-xs font-semibold cursor-pointer shadow-md transition-all active:scale-98 disabled:opacity-50"
+                      >
+                        {savingPassword ? (
+                          <>
+                            <Loader2 className="animate-spin" size={13} /> Updating...
+                          </>
+                        ) : (
+                          <>
+                            <Lock size={13} /> Update Password
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+
+                {/* 3. Plan & Billing Card with Renewal Warnings and History */}
+                <div className="bg-card border border-border/60 rounded-2xl p-6 shadow-xs space-y-5">
+                  <div className="flex items-center gap-3 border-b border-border/40 pb-4">
+                    <div className="w-8 h-8 rounded-lg bg-[#3f5ce6]/10 text-[#3f5ce6] flex items-center justify-center">
+                      <CreditCard size={16} />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-foreground">Plan & Billing</h3>
+                      <p className="text-[10px] text-muted-foreground">Monitor subscription level, renew plans, and download transaction invoices.</p>
+                    </div>
+                  </div>
+
+                  {/* Expiry Alert Warning Banner (3 days limit) */}
+                  {(isExpiringSoon() || isExpired()) && (
+                    <div className="p-4 rounded-xl border border-amber-500/25 bg-amber-500/5 dark:bg-amber-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex gap-3 text-left">
+                        <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={20} />
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-bold text-amber-500">
+                            {isExpired() ? 'Subscription Expired' : 'Subscription Expiring Soon'}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground leading-relaxed">
+                            Your billing plan is expiring on <strong>{profile?.plan_expires_at ? new Date(profile.plan_expires_at).toLocaleDateString() : 'N/A'}</strong>. Pay ₹199.00 to extend subscription for another 30 days.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleRenewPlan}
+                        disabled={renewingPlan}
+                        className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shrink-0 shadow-md transition-all active:scale-98 disabled:opacity-50 inline-flex items-center gap-1.5 cursor-pointer"
+                      >
+                        {renewingPlan ? (
+                          <>
+                            <Loader2 className="animate-spin" size={13} /> Processing...
+                          </>
+                        ) : (
+                          <>
+                            <Zap size={13} /> Renew Plan (₹199)
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* General Plan Details */}
+                  <div className="p-4 rounded-xl border border-border/40 bg-muted/20 flex items-center justify-between">
                     <div>
                       <p className="text-sm font-bold text-foreground capitalize">{profile?.plan || 'Free'} Plan</p>
-                      {profile?.plan_expires_at && (
-                        <p className="text-xs text-muted-foreground mt-0.5">Expires: {new Date(profile.plan_expires_at).toLocaleDateString()}</p>
+                      {profile?.plan_expires_at ? (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Expires: <strong className="text-foreground">{new Date(profile.plan_expires_at).toLocaleDateString()}</strong>
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground mt-1">No active subscription expiration details available.</p>
                       )}
                     </div>
-                    <span className="inline-flex px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-[#3f5ce6]/10 text-[#3f5ce6] border-[#3f5ce6]/20">
+                    <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border bg-[#3f5ce6]/10 text-[#3f5ce6] border-[#3f5ce6]/20">
                       {profile?.plan || 'free'}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 text-xs">
-                    {[
-                      { label: 'Profiles / Card', value: (profile?.plan === 'pro' || profile?.plan === 'business') ? '5' : '1' },
-                      { label: 'Social Links', value: (profile?.plan === 'pro' || profile?.plan === 'business') ? 'Unlimited' : '5' },
-                      { label: 'Payment Links', value: (profile?.plan === 'pro' || profile?.plan === 'business') ? 'Unlimited' : '3' },
-                      { label: 'Leads / Products / Feeds', value: (profile?.plan === 'pro' || profile?.plan === 'business') ? '✓ Included' : '✗ Pro only' },
-                    ].map((f) => (
-                      <div key={f.label} className="flex justify-between items-center py-2 border-b border-border last:border-0 col-span-2">
-                        <span className="text-muted-foreground">{f.label}</span>
-                        <span className={`font-bold ${f.value.startsWith('✗') ? 'text-red-400' : 'text-foreground'}`}>{f.value}</span>
+
+                  {/* Invoice / Payments History */}
+                  <div className="space-y-3 pt-2">
+                    <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Clock size={12} /> Transaction & Invoicing History
+                    </h4>
+
+                    {userOrders.length === 0 ? (
+                      <p className="text-xs text-muted-foreground bg-muted/10 p-3 rounded-lg border border-dashed border-border/60 text-center">
+                        No billing history or transaction invoices found.
+                      </p>
+                    ) : (
+                      <div className="border border-border/60 rounded-xl divide-y divide-border/60 overflow-hidden bg-muted/10">
+                        {userOrders.map((order) => {
+                          const isRenewal = order.order_number?.startsWith('ENV-REN-')
+                          return (
+                            <div key={order.id} className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono font-bold text-foreground">#{order.order_number}</span>
+                                  {isRenewal ? (
+                                    <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                                      Plan Renewal
+                                    </span>
+                                  ) : (
+                                    <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-[#3f5ce6]/10 text-[#3f5ce6] border border-[#3f5ce6]/20">
+                                      Card Purchase
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-[10px] text-muted-foreground flex flex-wrap gap-x-2.5 gap-y-0.5">
+                                  <span>Date: {new Date(order.created_at).toLocaleDateString()}</span>
+                                  <span>•</span>
+                                  <span>Amount: {formatPrice(order.total_amount_inr)}</span>
+                                  <span>•</span>
+                                  <span className="capitalize">Status: <strong className={order.status === 'fulfilled' ? 'text-emerald-500' : 'text-amber-500'}>{order.status}</strong></span>
+                                </div>
+                              </div>
+
+                              {order.invoice_url ? (
+                                <a
+                                  href={order.invoice_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="self-start sm:self-center px-3 py-1.5 rounded-lg border border-border bg-background hover:bg-muted text-foreground text-[10px] font-semibold transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                >
+                                  <FileDown size={12} /> Download Invoice
+                                </a>
+                              ) : (
+                                <span className="text-[10px] text-muted-foreground italic self-start sm:self-center">Invoice pending</span>
+                              )}
+                            </div>
+                          )
+                        })}
                       </div>
-                    ))}
+                    )}
                   </div>
-                  {!(profile?.plan === 'pro' || profile?.plan === 'business') && (
-                    <button
-                      onClick={() => setShowUpgradeModal(true)}
-                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold hover:opacity-90 transition-opacity shadow-lg shadow-amber-500/20 cursor-pointer"
-                    >
-                      <Sparkles size={13} /> Upgrade to Pro — Unlock Everything
-                    </button>
-                  )}
                 </div>
 
-                {/* Card nickname */}
-                {!isAllCards && (
-                  <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-                    <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Card Nickname</h3>
-                    <p className="text-xs text-muted-foreground">Give your card a friendly name to identify it in your dashboard.</p>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        defaultValue={activeCard?.card_nickname || ''}
-                        placeholder={`Card ${activeCard?.slug}`}
-                        className="flex-1 px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
-                      />
-                      <button className="px-4 py-2 rounded-lg bg-[#3f5ce6] hover:bg-[#3050d8] text-white text-xs font-semibold transition-all">
-                        Save
-                      </button>
+                {/* 4. Active Device Sessions Management */}
+                <div className="bg-card border border-border/60 rounded-2xl p-6 shadow-xs space-y-5">
+                  <div className="flex items-center justify-between gap-3 border-b border-border/40 pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-[#3f5ce6]/10 text-[#3f5ce6] flex items-center justify-center">
+                        <Activity size={16} />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-bold text-foreground">Active Sessions & Device Security</h3>
+                        <p className="text-[10px] text-muted-foreground">Manage active logins. Subscriptions are restricted to <strong>maximum 2 active devices</strong>.</p>
+                      </div>
                     </div>
+                    <button
+                      onClick={handleSignoutAllDevices}
+                      disabled={!!sessionDisconnecting}
+                      className="px-3 py-1.5 rounded-lg border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-500 text-[10px] font-bold transition-all disabled:opacity-50 cursor-pointer"
+                    >
+                      {sessionDisconnecting === true ? 'Signing Out...' : 'Sign Out All Devices'}
+                    </button>
                   </div>
-                )}
 
-                {/* Danger zone */}
-                <div className="bg-card border border-red-500/20 rounded-xl p-6 space-y-3">
-                  <h3 className="text-sm font-bold text-red-400 uppercase tracking-wider">Danger Zone</h3>
-                  <p className="text-xs text-muted-foreground">These actions are irreversible. Proceed with caution.</p>
-                  <div className="flex gap-3">
-                    <Link href="/orders" className="text-xs text-[#3f5ce6] hover:underline font-bold inline-flex items-center gap-1">
-                      View Orders <ArrowRight size={12} />
-                    </Link>
+                  <div className="divide-y divide-border/60 border border-border rounded-xl overflow-hidden bg-muted/10">
+                    {loggedSessions.map((session) => {
+                      const isCurrent = session.id === currentSessionId
+                      const { browser, os } = getBrowserAndOS(session.user_agent)
+                      return (
+                        <div key={session.id} className="p-4 flex items-center justify-between gap-4 text-xs">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 font-bold text-foreground">
+                              <span>{os}</span>
+                              <span className="text-muted-foreground/40">•</span>
+                              <span>{browser}</span>
+                              {isCurrent && (
+                                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#3f5ce6]/10 text-[#3f5ce6] border border-[#3f5ce6]/20">
+                                  Current Device
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">
+                              Last active: {session.updated_at ? new Date(session.updated_at).toLocaleString() : new Date(session.created_at).toLocaleString()}
+                            </p>
+                          </div>
+
+                          {!isCurrent ? (
+                            <button
+                              onClick={() => disconnectSession(session.id)}
+                              disabled={!!sessionDisconnecting}
+                              className="px-3 py-1.5 rounded-lg border border-red-500/20 bg-red-500/5 hover:bg-red-500/10 text-red-500 text-[10px] font-bold transition-all disabled:opacity-50 cursor-pointer"
+                            >
+                              {sessionDisconnecting === session.id ? 'Disconnecting...' : 'Disconnect'}
+                            </button>
+                          ) : (
+                            <span className="text-[10px] font-semibold text-emerald-500 flex items-center gap-1">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" /> Active Now
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               </div>

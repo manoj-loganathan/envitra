@@ -595,13 +595,21 @@ export default function NFCProfileLandingPage() {
 
         const { data: accData, error: accErr } = await supabase
           .from('accounts')
-          .select('id, plan, plan_expires_at')
+          .select('id, plan, plan_expires_at, nfc_redirect_to_dashboard')
           .eq('id', cardData.account_id)
           .single()
 
         if (accErr || !accData) {
           if (active) setProfileNotFound(true)
           return
+        }
+
+        if (accData.nfc_redirect_to_dashboard) {
+          const { data: { session: currentSession } } = await supabase.auth.getSession()
+          if (currentSession && currentSession.user && currentSession.user.id === cardData.account_id) {
+            router.push('/dashboard')
+            return
+          }
         }
 
         if (active) setAccount(accData)
@@ -736,7 +744,11 @@ export default function NFCProfileLandingPage() {
               category: pl.social_links.category || 'social',
               created_at: pl.created_at,
             }))
-          if (active) setLinks(mapped)
+          // Sort links: social first, followed by payment links
+          const socialLinks = mapped.filter((l: any) => l.category.toLowerCase() !== 'payment' && l.category.toLowerCase() !== 'payments')
+          const paymentLinks = mapped.filter((l: any) => l.category.toLowerCase() === 'payment' || l.category.toLowerCase() === 'payments')
+          const sorted = [...socialLinks, ...paymentLinks]
+          if (active) setLinks(sorted)
         } else {
           if (active) setLinks([])
         }
