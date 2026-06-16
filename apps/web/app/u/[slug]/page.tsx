@@ -587,7 +587,7 @@ export default function NFCProfileLandingPage() {
 
         const { data: accData, error: accErr } = await supabase
           .from('accounts')
-          .select('*')
+          .select('id, plan, plan_expires_at')
           .eq('id', cardData.account_id)
           .single()
 
