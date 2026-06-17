@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
   BarChart3,
@@ -67,9 +67,10 @@ const CARD_NAV = [
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function AppSidebar({ activeCard, cards, account, handleSelectCard, onUpgradeClick, ...props }: SidebarProps) {
-  const searchParams = useSearchParams()
+  const pathname = usePathname()
   const router = useRouter()
-  const activeTab = searchParams.get('tab') || 'overview'
+  const segments = pathname.split('/').filter(Boolean)
+  const activeTab = segments[0] === 'dashboard' && segments[1] ? segments[1] : 'overview'
 
   const isAllCards = !activeCard || activeCard?.id === 'all'
   const isPro = account?.plan === 'pro' || account?.plan === 'business'
@@ -78,7 +79,7 @@ export function AppSidebar({ activeCard, cards, account, handleSelectCard, onUpg
 
   const handleBackToAll = () => {
     handleSelectCard({ id: 'all' })
-    router.push('/dashboard?tab=overview')
+    router.push('/dashboard/overview')
   }
 
   return (
@@ -107,9 +108,7 @@ export function AppSidebar({ activeCard, cards, account, handleSelectCard, onUpg
           <SidebarMenu className="gap-0.5">
             {menuItems.map((item) => {
               const isActive = activeTab === item.tab
-              const href = (item as any).href || (isAllCards
-                ? `/dashboard?tab=${item.tab}`
-                : `/dashboard?tab=${item.tab}`)
+              const href = (item as any).href || `/dashboard/${item.tab}`
               const isLocked = (item as any).pro && !isPro
 
               return (

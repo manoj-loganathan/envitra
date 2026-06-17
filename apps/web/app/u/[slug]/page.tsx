@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { useTheme } from 'next-themes'
 import { 
   Phone, Mail, MapPin, Globe, Briefcase, FileText, 
   Star, ThumbsUp, Heart, Flame, MessageCircle, Share2, 
@@ -488,11 +487,6 @@ export default function NFCProfileLandingPage() {
   const router = useRouter()
   const slug = params.slug as string
   const supabase = createClient()
-  const { setTheme } = useTheme()
-
-  useEffect(() => {
-    setTheme('dark')
-  }, [setTheme])
 
   // Main state
   const [loading, setLoading] = useState(true)
@@ -811,7 +805,10 @@ export default function NFCProfileLandingPage() {
 
     loadNFCProfile(true)
 
-    // Set up Realtime listener to trigger reload on any changes to card resources
+    // Set up Realtime listener to trigger reload on changes to card config
+    // NOTE: profile_links and social_links are intentionally excluded here —
+    // click_count updates on profile_links would cause a full reload on every
+    // link click, which doubles the visible count (optimistic update + reload).
     const channel = supabase
       .channel(`nfc-profile-${slug}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'nfc_cards' }, (payload: any) => {
@@ -826,12 +823,6 @@ export default function NFCProfileLandingPage() {
         loadNFCProfile(false)
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vcard_details' }, () => {
-        loadNFCProfile(false)
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'profile_links' }, () => {
-        loadNFCProfile(false)
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'social_links' }, () => {
         loadNFCProfile(false)
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'profile_products' }, () => {
@@ -899,12 +890,27 @@ export default function NFCProfileLandingPage() {
 
 
   // Links click logging
+  // - Optimistic local update: UI shows click_count + 1 immediately
+  // - DB: inserts into link_clicks → DB trigger (trg_increment_link_click_count)
+  //   fires ONCE and increments profile_links.click_count by 1
+  // NOTE: Do NOT call increment_profile_link_click RPC here — that would
+  //       double-count alongside the trigger.
   const handleLinkClick = async (link: any) => {
+    // Optimistic local update
+    setLinks((prev: any[]) =>
+      prev.map((l) =>
+        l.junction_id === link.junction_id
+          ? { ...l, click_count: (l.click_count || 0) + 1 }
+          : l
+      )
+    )
+
     try {
       const profileId = link.profile_id || profile?.id
       if (profileId) {
+        // Single insert — the DB trigger handles incrementing click_count
         await supabase.from('link_clicks').insert({
-          link_id: link.id,
+          link_id: link.link_id,   // social_links.id (FK on link_clicks)
           profile_id: profileId,
           tap_id: tapId || null
         })
@@ -1323,7 +1329,7 @@ export default function NFCProfileLandingPage() {
   const primaryEmail = vcard?.emails?.[0]?.email || ''
 
   return (
-    <div className="min-h-[100dvh] bg-zinc-950 text-zinc-100 flex flex-col items-center pt-0 sm:pt-8 pb-0 sm:pb-8 px-0 sm:px-4 relative overflow-x-hidden select-none">
+    <div data-theme="dark" className="min-h-[100dvh] bg-zinc-950 text-zinc-100 flex flex-col items-center pt-0 sm:pt-8 pb-0 sm:pb-8 px-0 sm:px-4 relative overflow-x-hidden select-none">
       
       {/* Background radial glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-[120px] pointer-events-none -z-10" />
