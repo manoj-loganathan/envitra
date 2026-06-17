@@ -48,6 +48,7 @@ interface SidebarProps extends React.ComponentProps<typeof Sidebar> {
 const ALL_CARDS_NAV = [
   { icon: LayoutDashboard, label: 'Overview',  tab: 'overview'  },
   { icon: Package,         label: 'Orders',    tab: 'orders'    },
+  { icon: Settings,        label: 'Settings',  tab: 'settings'  },
 ]
 
 const CARD_NAV = [

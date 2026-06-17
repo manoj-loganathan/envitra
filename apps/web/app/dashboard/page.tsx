@@ -11,7 +11,7 @@ import {
   ChevronDown, Check, Sparkles, AlertCircle, Share2,
   LayoutDashboard, Users, Menu, X, Search, FileDown,
   ArrowRight, ChevronLeft, ChevronRight, Magnet, BarChart3,
-  Lock, Link2, Package, Contact, Loader2, Clock, Zap,
+  Lock, Link2, Package, Contact, Loader2, Clock, Zap, Laptop, Smartphone, Tablet,
   UserCheck, Cpu, Calendar, QrCode, Camera, Upload, Image as ImageIcon,
   Phone, Mail, MapPin, Globe, Briefcase, FileText, Eye,
   GripVertical, Navigation, SquarePen, Edit, MousePointer2, MessageCircle, Code2, Music, ShoppingBag,
@@ -103,6 +103,20 @@ const getBrowserAndOS = (customUa?: string) => {
   else if (ua.indexOf('Linux') > -1) os = 'Linux'
 
   return { browser, os }
+}
+
+const getDeviceIcon = (os: string) => {
+  const osLower = os.toLowerCase()
+  if (osLower.includes('ios') || osLower.includes('android')) {
+    return <Smartphone className="w-4 h-4 text-muted-foreground" />
+  }
+  if (osLower.includes('ipad')) {
+    return <Tablet className="w-4 h-4 text-muted-foreground" />
+  }
+  if (osLower.includes('mac') || osLower.includes('win') || osLower.includes('linux')) {
+    return <Laptop className="w-4 h-4 text-muted-foreground" />
+  }
+  return <Globe className="w-4 h-4 text-muted-foreground" />
 }
 
 // Helper to get a case-insensitive value from lead.data
@@ -1639,7 +1653,7 @@ function UserDashboardContent() {
   // Workspace active tab redirect logic
   useEffect(() => {
     if (activeCard?.id === 'all') {
-      if (!['overview', 'orders'].includes(activeTab)) {
+      if (!['overview', 'orders', 'settings'].includes(activeTab)) {
         router.push('/dashboard?tab=overview')
       }
     } else {
@@ -1672,9 +1686,10 @@ function UserDashboardContent() {
               const base64Url = token.split('.')[1]
               const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
               const payload = JSON.parse(window.atob(base64))
-              if (payload.sid) {
-                parsedSid = payload.sid
-                setCurrentSessionId(payload.sid)
+              const sidVal = payload.session_id || payload.sid || ''
+              if (sidVal) {
+                parsedSid = sidVal
+                setCurrentSessionId(sidVal)
               }
             }
           } catch (jwtErr) {
@@ -1758,6 +1773,147 @@ function UserDashboardContent() {
       subscription.unsubscribe()
     }
   }, [])
+
+  // Active Session Polling Heartbeat
+  useEffect(() => {
+    if (!user?.id) return
+
+    const interval = setInterval(() => {
+      syncUserSession(user.id)
+    }, 10000) // Poll every 10 seconds
+
+    return () => clearInterval(interval)
+  }, [user?.id, currentSessionId])
+
+  // Supabase Realtime Subscriptions
+  useEffect(() => {
+    if (!user?.id) return
+
+    const channel = supabase
+      .channel('dashboard-realtime-changes')
+      // 1. Accounts updates
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'accounts', filter: `id=eq.${user.id}` },
+        async (payload) => {
+          console.log('Realtime: accounts updated', payload)
+          const { data: accData } = await supabase
+            .from('accounts')
+            .select('*')
+            .eq('id', user.id)
+            .single()
+          if (accData) {
+            setProfile(accData)
+            setAccountForm({
+              fullName: accData.full_name || '',
+              nfcRedirectToDashboard: !!accData.nfc_redirect_to_dashboard
+            })
+          }
+        }
+      )
+      // 2. NFC Cards updates
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'nfc_cards', filter: `account_id=eq.${user.id}` },
+        async (payload) => {
+          console.log('Realtime: nfc_cards updated', payload)
+          const { data: cardsData } = await supabase
+            .from('nfc_cards')
+            .select('*, order_items(personalisation)')
+            .eq('account_id', user.id)
+            .order('provisioned_at', { ascending: false })
+          if (cardsData) {
+            setCards(cardsData)
+          }
+        }
+      )
+      // 3. Card Profiles updates
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'card_profiles' },
+        (payload) => {
+          console.log('Realtime: card_profiles updated', payload)
+          if (activeCard) {
+            handleSelectCard(activeCard)
+          }
+        }
+      )
+      // 4. vCard Details updates
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'vcard_details' },
+        (payload) => {
+          console.log('Realtime: vcard_details updated', payload)
+          if (activeCard) {
+            handleSelectCard(activeCard)
+          }
+        }
+      )
+      // 5. Links updates
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profile_links' },
+        (payload) => {
+          console.log('Realtime: profile_links updated', payload)
+          if (activeProfile?.id) {
+            fetchProfileLinks(activeProfile.id)
+            fetchAllAccountLinks()
+          }
+        }
+      )
+      // 6. Products updates
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profile_products' },
+        (payload) => {
+          console.log('Realtime: profile_products updated', payload)
+          if (activeProfile?.id) {
+            fetchProfileProducts(activeProfile.id)
+            fetchAllAccountProducts()
+          }
+        }
+      )
+      // 7. Feeds updates
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'profile_feeds' },
+        (payload) => {
+          console.log('Realtime: profile_feeds updated', payload)
+          if (activeProfile?.id) {
+            fetchProfileFeeds(activeProfile.id)
+            fetchAllAccountFeeds()
+          }
+        }
+      )
+      // 8. Lead Submissions updates
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'lead_submissions' },
+        (payload) => {
+          console.log('Realtime: lead_submissions updated', payload)
+          if (activeProfile?.id) {
+            fetchLeads(activeProfile.id)
+          }
+        }
+      )
+      // 9. Lead Forms updates
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'lead_forms' },
+        (payload) => {
+          console.log('Realtime: lead_forms updated', payload)
+          if (activeProfile?.id) {
+            fetchLeadForms(activeProfile.id)
+            fetchAllAccountLeadForms()
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      channel.unsubscribe()
+    }
+  }, [user?.id, activeCard?.id, activeProfile?.id])
 
   // Handle active card switch — fetches profiles for the selected card
   const handleSelectCard = async (card: any) => {
@@ -4852,10 +5008,36 @@ function UserDashboardContent() {
   const syncUserSession = async (userId: string, parsedSid?: string) => {
     if (typeof window === 'undefined') return
 
-    const activeSid = parsedSid || currentSessionId
+    let activeSid = parsedSid || currentSessionId
+    if (!activeSid) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        const token = session?.access_token
+        if (token) {
+          const base64Url = token.split('.')[1]
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+          const payload = JSON.parse(window.atob(base64))
+          const sidVal = payload.session_id || payload.sid || ''
+          if (sidVal) {
+            activeSid = sidVal
+            setCurrentSessionId(sidVal)
+          }
+        }
+      } catch (err) {
+        console.error('Error parsing session ID in sync:', err)
+      }
+    }
 
     try {
       const res = await fetch('/api/auth/sessions')
+      if (res.status === 401) {
+        // Local session is expired/unauthorized. Signout locally.
+        await supabase.auth.signOut({ scope: 'local' })
+        router.refresh()
+        router.push('/login?redirect=/dashboard')
+        return
+      }
+
       if (!res.ok) {
         throw new Error(`Failed to fetch sessions: ${res.statusText}`)
       }
@@ -4863,6 +5045,15 @@ function UserDashboardContent() {
       const sessions = data.sessions || []
 
       setLoggedSessions(sessions)
+
+      // Auto-signout if current session was disconnected remotely
+      const activeIds = sessions.map((s: any) => s.id)
+      if (activeSid && !activeIds.includes(activeSid)) {
+        await supabase.auth.signOut({ scope: 'local' })
+        router.refresh()
+        router.push('/login?redirect=/dashboard')
+        return
+      }
 
       if (sessions.length > 2) {
         // Sort by created_at ascending (oldest first)
@@ -5659,17 +5850,27 @@ function UserDashboardContent() {
                 const isCurrent = session.id === currentSessionId
                 const { browser, os } = getBrowserAndOS(session.user_agent)
                 return (
-                  <div key={session.id} className="p-4 flex items-center justify-between gap-4 text-xs">
+                  <div 
+                    key={session.id} 
+                    className={`p-4 flex items-center justify-between gap-4 text-xs transition-all ${
+                      isCurrent 
+                        ? 'bg-[#3f5ce6]/10 border-l-4 border-l-[#3f5ce6]' 
+                        : 'hover:bg-zinc-900/40'
+                    }`}
+                  >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 font-bold text-zinc-200">
+                        {getDeviceIcon(os)}
                         <span>{os}</span>
                         <span className="text-zinc-700 font-bold">•</span>
-                        <span>{browser}</span>
-                        {isCurrent && (
-                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#3f5ce6]/20 text-[#3f5ce6] border border-[#3f5ce6]/30">
-                            Current Device
-                          </span>
-                        )}
+                        <span>
+                          {browser}
+                          {isCurrent && (
+                            <span className="text-[#3f5ce6] font-bold text-[10px] ml-2 bg-[#3f5ce6]/20 px-1.5 py-0.5 rounded border border-[#3f5ce6]/30">
+                              Current Device
+                            </span>
+                          )}
+                        </span>
                       </div>
                       <p className="text-[10px] text-zinc-500">
                         Last Active: {session.updated_at ? new Date(session.updated_at).toLocaleString() : new Date(session.created_at).toLocaleString()}
@@ -13263,17 +13464,27 @@ function UserDashboardContent() {
                       const isCurrent = session.id === currentSessionId
                       const { browser, os } = getBrowserAndOS(session.user_agent)
                       return (
-                        <div key={session.id} className="p-4 flex items-center justify-between gap-4 text-xs">
+                        <div 
+                          key={session.id} 
+                          className={`p-4 flex items-center justify-between gap-4 text-xs transition-all ${
+                            isCurrent 
+                              ? 'bg-[#3f5ce6]/5 border-l-4 border-l-[#3f5ce6]' 
+                              : 'hover:bg-muted/5'
+                          }`}
+                        >
                           <div className="space-y-1">
                             <div className="flex items-center gap-2 font-bold text-foreground">
+                              {getDeviceIcon(os)}
                               <span>{os}</span>
                               <span className="text-muted-foreground/40">•</span>
-                              <span>{browser}</span>
-                              {isCurrent && (
-                                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#3f5ce6]/10 text-[#3f5ce6] border border-[#3f5ce6]/20">
-                                  Current Device
-                                </span>
-                              )}
+                              <span>
+                                {browser}
+                                {isCurrent && (
+                                  <span className="text-[#3f5ce6] font-bold text-[10px] ml-2 bg-[#3f5ce6]/10 px-1.5 py-0.5 rounded border border-[#3f5ce6]/20">
+                                    Current Device
+                                  </span>
+                                )}
+                              </span>
                             </div>
                             <p className="text-[10px] text-muted-foreground">
                               Last active: {session.updated_at ? new Date(session.updated_at).toLocaleString() : new Date(session.created_at).toLocaleString()}
