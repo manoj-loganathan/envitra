@@ -647,6 +647,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const refreshAllData = async () => {
     let active = true
     try {
+      if (typeof window !== 'undefined' && localStorage.getItem('envitra_recovery_mode') === 'true') {
+        localStorage.removeItem('envitra_recovery_mode')
+        await supabase.auth.signOut()
+        router.push('/login')
+        return
+      }
+
       const { data: { session: authSession }, error: authErr } = await supabase.auth.getSession()
       const authUser = authSession?.user
       if (authErr || !authUser || !authSession) {
@@ -730,6 +737,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     refreshAllData()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session && typeof window !== 'undefined' && localStorage.getItem('envitra_recovery_mode') === 'true') {
+        localStorage.removeItem('envitra_recovery_mode')
+        await supabase.auth.signOut()
+        router.push('/login')
+        return
+      }
+
       if (session?.user) {
         setUser(session.user)
       } else if (!session) {

@@ -24,11 +24,34 @@ export function Header() {
   const supabase = createClient()
 
   // Must be after all hooks — no early return before hooks
-  const isDashboard = pathname && (pathname.startsWith('/dashboard') || pathname.startsWith('/u/'))
+  const shouldHideHeader = pathname && (
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/u/') ||
+    pathname === '/login' ||
+    pathname === '/register' ||
+    pathname === '/forgot-password'
+  )
 
   useEffect(() => {
     setItemCount(storeItemCount)
   }, [storeItemCount])
+
+  // If in recovery/password-reset mode but navigated away, force sign out cleanly
+  useEffect(() => {
+    const handleRecoveryBypass = async () => {
+      if (pathname !== '/forgot-password' && typeof window !== 'undefined' && localStorage.getItem('envitra_recovery_mode') === 'true') {
+        localStorage.removeItem('envitra_recovery_mode')
+        try {
+          await supabase.auth.signOut()
+        } catch (err) {
+          console.error('Sign out on bypass error:', err)
+        }
+        setUser(null)
+        setProfile(null)
+      }
+    }
+    handleRecoveryBypass()
+  }, [pathname, supabase])
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -78,7 +101,7 @@ export function Header() {
   }
 
   const navLinks = [
-    { name: 'Home', href: '/' },
+    { name: 'Home', href: '#hero' },
     { name: 'How It Works', href: '#how-it-works' },
     { name: 'Who It\'s For', href: '#who-its-for' },
     { name: 'Eco Impact', href: '#eco-impact' },
@@ -90,11 +113,13 @@ export function Header() {
     setIsOpen(false)
     if (href.startsWith('#')) {
       if (pathname === '/') {
+        // Smooth scroll to the section on the current page
         const element = document.getElementById(href.replace('#', ''))
         if (element) {
           element.scrollIntoView({ behavior: 'smooth' })
         }
       } else {
+        // Navigate to home with hash anchor
         router.push('/' + href)
       }
     }
@@ -114,7 +139,7 @@ export function Header() {
     }
     return 'U'
   }
-  if (isDashboard) return null
+  if (shouldHideHeader) return null
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-[var(--border)] bg-[var(--bg-surface)]/80 backdrop-blur-md transition-colors duration-200">

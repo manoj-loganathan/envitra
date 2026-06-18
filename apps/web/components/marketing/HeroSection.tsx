@@ -15,6 +15,7 @@ export function HeroSection() {
 
   return (
     <section
+      id="hero"
       className="relative overflow-hidden flex flex-col"
       style={{ background: 'var(--bg-page)' }}
     >

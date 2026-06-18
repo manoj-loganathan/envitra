@@ -139,8 +139,22 @@ export function SettingsTab() {
       setMessage({ type: 'error', text: 'Passwords do not match.' })
       return
     }
-    if (newPassword.length < 6) {
-      setMessage({ type: 'error', text: 'Password must be at least 6 characters long.' })
+
+    const hasLowercase = /[a-z]/.test(newPassword)
+    const hasUppercase = /[A-Z]/.test(newPassword)
+    const hasDigit = /\d/.test(newPassword)
+    const hasSpecial = /[!@#$%^&*()_+=\-[\]{};':"\\|,.<>/?~`]/.test(newPassword)
+
+    if (newPassword.length < 8) {
+      setMessage({ type: 'error', text: 'Password must be at least 8 characters long.' })
+      return
+    }
+
+    if (!hasLowercase || !hasUppercase || !hasDigit || !hasSpecial) {
+      setMessage({
+        type: 'error',
+        text: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character/symbol.'
+      })
       return
     }
 

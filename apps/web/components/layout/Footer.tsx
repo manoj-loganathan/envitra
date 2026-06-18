@@ -7,7 +7,13 @@ import { usePathname } from 'next/navigation'
 export function Footer() {
   const pathname = usePathname()
 
-  if (pathname && (pathname.startsWith('/dashboard') || pathname.startsWith('/u/'))) {
+  if (pathname && (
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/u/') ||
+    pathname === '/login' ||
+    pathname === '/register' ||
+    pathname === '/forgot-password'
+  )) {
     return null
   }
 
@@ -89,12 +95,12 @@ export function Footer() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="text-sm text-[var(--text-secondary)] hover:text-purple-500 transition-colors">
+                  <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="text-sm text-[var(--text-secondary)] hover:text-purple-500 transition-colors">
                     Privacy Policy
                   </Link>
                 </li>
                 <li>
-                  <Link href="#" className="text-sm text-[var(--text-secondary)] hover:text-purple-500 transition-colors">
+                  <Link href="/terms" target="_blank" rel="noopener noreferrer" className="text-sm text-[var(--text-secondary)] hover:text-purple-500 transition-colors">
                     Terms of Service
                   </Link>
                 </li>
