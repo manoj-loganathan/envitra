@@ -78,10 +78,15 @@ export async function POST(request: Request) {
     if (plan === 'pro') {
       const { data: accountData } = await supabase
         .from('accounts')
-        .select('plan')
+        .select('plan, plan_expires_at')
         .eq('id', session.user.id)
         .single()
-      if (!accountData || accountData.plan !== 'pro') {
+      
+      const isCurrentlyPro = accountData &&
+        (accountData.plan === 'pro' || accountData.plan === 'business') &&
+        (!accountData.plan_expires_at || new Date(accountData.plan_expires_at) > new Date())
+
+      if (!isCurrentlyPro) {
         planCharge = 19900 // ₹199
       }
     }
@@ -216,8 +221,8 @@ export async function POST(request: Request) {
       }
     }
 
-    // 5. Update user plan if Pro was selected
-    if (plan === 'pro') {
+    // 5. Update user plan if Pro was selected and paid for (e.g. new purchase or renewal)
+    if (plan === 'pro' && planCharge > 0) {
       const { error: userErr } = await supabase
         .from('accounts')
         .update({

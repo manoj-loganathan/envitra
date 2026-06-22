@@ -67,7 +67,7 @@ function AdminLoginForm() {
       <div className="max-w-md w-full space-y-6 bg-zinc-900 p-8 rounded-card border border-zinc-800 shadow-lg">
         
         <div className="text-center">
-          <div className="w-10 h-10 rounded bg-gradient-primary flex items-center justify-center shadow-purple-sm mx-auto mb-4">
+          <div className="w-10 h-10 rounded bg-blue-600 flex items-center justify-center shadow-sm mx-auto mb-4">
             <svg width="20" height="20" viewBox="0 0 16 16" fill="none">
               <path d="M4 8 C4 5.8 5.8 4 8 4" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
               <path d="M2 8 C2 4.7 4.7 2 8 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.6"/>
@@ -99,7 +99,7 @@ function AdminLoginForm() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 rounded-btn border border-zinc-800 bg-zinc-950 text-sm focus:border-purple-600 focus:outline-none text-white"
+                className="w-full px-3 py-2 rounded-btn border border-zinc-800 bg-zinc-950 text-sm focus:border-blue-600 focus:outline-none text-white"
                 placeholder="admin@envitra.in"
               />
             </div>
@@ -113,7 +113,7 @@ function AdminLoginForm() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3 py-2 rounded-btn border border-zinc-800 bg-zinc-950 text-sm focus:border-purple-600 focus:outline-none text-white"
+                className="w-full px-3 py-2 rounded-btn border border-zinc-800 bg-zinc-950 text-sm focus:border-blue-600 focus:outline-none text-white"
                 placeholder="••••••••"
               />
             </div>
@@ -122,7 +122,7 @@ function AdminLoginForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full px-4 py-2.5 rounded-btn font-medium text-white text-xs bg-gradient-primary hover:bg-gradient-primary-hover shadow-purple-md transition-all duration-200 disabled:opacity-55 cursor-pointer mt-2"
+            className="w-full px-4 py-2.5 rounded-btn font-medium text-white text-xs bg-blue-600 hover:bg-blue-700 shadow-sm transition-all duration-200 disabled:opacity-55 cursor-pointer mt-2"
           >
             {loading ? 'Authenticating...' : 'Access Dashboard'}
           </button>
@@ -137,7 +137,7 @@ export default function AdminLoginPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-purple-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-blue-600" />
       </div>
     }>
       <AdminLoginForm />

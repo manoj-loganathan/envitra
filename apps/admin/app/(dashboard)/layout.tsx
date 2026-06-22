@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { ThemeProvider } from '@/components/layout/ThemeProvider'
 import { AdminSidebar } from '@/components/layout/AdminSidebar'
 import { AdminHeader } from '@/components/layout/AdminHeader'
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar'
+import { TooltipProvider } from '@/components/ui/tooltip'
 import { createClient } from '@/lib/supabase/client'
 
 export default function DashboardLayout({
@@ -26,7 +28,6 @@ export default function DashboardLayout({
           return
         }
 
-        // Check if user is in public.admin_users
         const { data, error } = await supabase
           .from('admin_users')
           .select('role')
@@ -54,7 +55,7 @@ export default function DashboardLayout({
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-purple-600" />
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-blue-600" />
       </div>
     )
   }
@@ -63,20 +64,24 @@ export default function DashboardLayout({
 
   return (
     <ThemeProvider>
-      <div className="min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)] transition-colors duration-200 antialiased flex">
-        
-        {/* Sidebar Left fixed navigation */}
-        <AdminSidebar />
+      <TooltipProvider delay={0}>
+        <SidebarProvider defaultOpen={true}>
+          <div className="min-h-screen bg-[var(--bg-page)] text-[var(--text-primary)] transition-colors duration-200 antialiased flex w-full">
 
-        {/* Content Shell */}
-        <div className="flex-grow ml-56 flex flex-col min-h-screen">
-          <AdminHeader />
-          <main className="flex-grow p-6 sm:p-8 overflow-y-auto">
-            {children}
-          </main>
-        </div>
+            {/* Shadcn Sidebar */}
+            <AdminSidebar />
 
-      </div>
+            {/* Main content area that shrinks/expands with sidebar */}
+            <SidebarInset className="flex flex-col flex-1 min-h-screen overflow-hidden">
+              <AdminHeader />
+              <main className="flex-1 p-6 sm:p-8 overflow-y-auto">
+                {children}
+              </main>
+            </SidebarInset>
+
+          </div>
+        </SidebarProvider>
+      </TooltipProvider>
     </ThemeProvider>
   )
 }

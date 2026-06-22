@@ -305,7 +305,21 @@ export default function CartPage() {
                       )}
                     </div>
 
-                    {pers.customSlug && (
+                    {pers.customSlugs && pers.customSlugs.length > 0 ? (
+                      <div className="sm:col-span-2 border-t border-[var(--border)] pt-1.5">
+                        <span className="font-bold text-[var(--text-primary)] uppercase text-[9px] tracking-wider block">Claimed Custom Profile Links</span>
+                        <div className="mt-1 space-y-1">
+                          {pers.customSlugs.map((slug: string, idx: number) => (
+                            <p key={idx}>
+                              <span className="text-[var(--text-muted)]">Card {idx + 1}:</span>{' '}
+                              <span className="font-bold text-purple-600 dark:text-purple-400">
+                                envitra.in/u/{slug}
+                              </span>
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    ) : pers.customSlug ? (
                       <div className="sm:col-span-2 border-t border-[var(--border)] pt-1.5">
                         <span className="font-bold text-[var(--text-primary)] uppercase text-[9px] tracking-wider block">Claimed Custom Profile Link</span>
                         <p className="mt-1">
@@ -315,7 +329,7 @@ export default function CartPage() {
                           </span>
                         </p>
                       </div>
-                    )}
+                    ) : null}
 
                     {/* Show typography if customized */}
                     {(itemTitleFont !== 'font-sans' || itemTitleSize !== 'text-base' || itemTitleColor || itemTaglineFont !== 'font-sans' || itemTaglineSize !== 'text-xs' || itemTaglineColor) && (

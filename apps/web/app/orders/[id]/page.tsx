@@ -20,6 +20,11 @@ export default function OrderDetailPage() {
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
+  const isProOrder = 
+    order?.plan_charge_inr > 0 ||
+    ((order?.accounts?.plan === 'pro' || order?.accounts?.plan === 'business') &&
+     (!order?.accounts?.plan_expires_at || new Date(order?.created_at) <= new Date(order?.accounts?.plan_expires_at)))
+
   const handleDownloadInvoice = () => {
     if (order?.invoice_url) {
       window.open(order.invoice_url, '_blank')
@@ -289,6 +294,11 @@ export default function OrderDetailPage() {
                   <td style="text-align: left; padding: 5px 0; color: #475569;">Pro Profile Upgrade (1 Month)</td>
                   <td style="text-align: right; padding: 5px 0; font-weight: 500; color: #7c3aed;">₹${planInr.toFixed(2)}</td>
                 </tr>
+                ` : isProOrder ? `
+                <tr>
+                  <td style="text-align: left; padding: 5px 0; color: #475569;">Pro Profile Plan</td>
+                  <td style="text-align: right; padding: 5px 0; font-weight: 600; color: #16a34a;">Active (Included)</td>
+                </tr>
                 ` : `
                 <tr>
                   <td style="text-align: left; padding: 5px 0; color: #475569;">Digital Profile Plan</td>
@@ -336,7 +346,7 @@ export default function OrderDetailPage() {
       try {
         const { data: orderData, error: orderErr } = await supabase
           .from('orders')
-          .select('*')
+          .select('*, accounts(plan)')
           .eq('id', orderId)
           .single()
 
@@ -558,7 +568,9 @@ export default function OrderDetailPage() {
 
               <div className="flex justify-between">
                 <span>Selected Plan</span>
-                <span className="font-semibold text-[var(--text-primary)] uppercase">{order.plan_charge_inr > 0 ? 'PRO' : 'FREE'}</span>
+                <span className="font-semibold text-[var(--text-primary)] uppercase">
+                  {isProOrder ? 'PRO' : 'FREE'}
+                </span>
               </div>
 
               <div className="flex justify-between">
@@ -569,12 +581,14 @@ export default function OrderDetailPage() {
                 <span>GST (18%)</span>
                 <span>{formatPrice(order.gst_inr)}</span>
               </div>
-              {order.plan_charge_inr > 0 && (
+              {isProOrder ? (
                 <div className="flex justify-between">
                   <span>Pro Plan Charge</span>
-                  <span>{formatPrice(order.plan_charge_inr)}</span>
+                  <span className={order.plan_charge_inr > 0 ? "font-semibold" : "text-emerald-600 dark:text-emerald-400 font-bold"}>
+                    {order.plan_charge_inr > 0 ? formatPrice(order.plan_charge_inr) : 'Included (₹0)'}
+                  </span>
                 </div>
-              )}
+              ) : null}
               
               <div className="flex justify-between font-bold text-sm text-[var(--text-primary)] pt-1 border-t border-[var(--border)]">
                 <span>Total Billed</span>

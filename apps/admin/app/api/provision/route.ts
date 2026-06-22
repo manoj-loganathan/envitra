@@ -23,12 +23,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
-    // Verify order is pending_production
-    if (order.status !== 'pending_production') {
+    // Verify order is in a valid state to be provisioned (pending_production or in_production)
+    if (order.status !== 'pending_production' && order.status !== 'in_production') {
       return NextResponse.json({ error: `Order cannot be provisioned in status: ${order.status}` }, { status: 400 })
     }
 
     const orderItems = order.order_items || []
+
+    // Delete any existing nfc_cards for these order items to avoid duplication or constraint errors on retry
+    const itemIds = orderItems.map((item: any) => item.id)
+    if (itemIds.length > 0) {
+      const { error: deleteErr } = await supabase
+        .from('nfc_cards')
+        .delete()
+        .in('order_item_id', itemIds)
+      
+      if (deleteErr) {
+        console.error('Failed to delete existing cards for re-provision:', deleteErr)
+      }
+    }
+
     const provisionedCards = []
 
     // 2. Loop through each item to provision
@@ -36,11 +50,29 @@ export async function POST(request: Request) {
       const quantity = item.quantity || 1
 
       for (let i = 0; i < quantity; i++) {
-        // Determine the card slug based on customSlug if provided
-        const customSlug = item.personalisation?.customSlug
+        // Determine the card slug based on customSlugs list or customSlug fallback if provided
+        const customSlugs = item.personalisation?.customSlugs || []
+        const fallbackCustomSlug = item.personalisation?.customSlug
         let slug = ''
-        if (customSlug) {
-          const baseSlug = customSlug.trim().toLowerCase()
+        
+        if (customSlugs[i]) {
+          const candidate = customSlugs[i].trim().toLowerCase()
+          
+          // Double check database uniqueness to avoid any key constraint conflicts
+          const { data: existing } = await supabase
+            .from('nfc_cards')
+            .select('id')
+            .eq('slug', candidate)
+            .maybeSingle()
+            
+          if (existing) {
+            const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase()
+            slug = `${candidate}-${randomSuffix}`
+          } else {
+            slug = candidate
+          }
+        } else if (fallbackCustomSlug) {
+          const baseSlug = fallbackCustomSlug.trim().toLowerCase()
           const candidate = i === 0 ? baseSlug : `${baseSlug}-${i + 1}`
           
           // Double check database uniqueness to avoid any key constraint conflicts

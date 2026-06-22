@@ -17,6 +17,26 @@ export default function CheckoutPage() {
   const [selectedPlan, setSelectedPlan] = useState<'free' | 'pro'>('pro')
   const [session, setSession] = useState<any>(null)
   const [userPlan, setUserPlan] = useState<string>('free')
+  const [userPlanExpiresAt, setUserPlanExpiresAt] = useState<string | null>(null)
+
+  const hasActivePro = !!(
+    session &&
+    (userPlan === 'pro' || userPlan === 'business') &&
+    (!userPlanExpiresAt || new Date(userPlanExpiresAt) > new Date())
+  )
+
+  const stepsList = hasActivePro
+    ? [
+        { key: 1, label: '1. Confirm Order' },
+        { key: 3, label: '2. Shipping' },
+        { key: 4, label: '3. Review & Pay' },
+      ]
+    : [
+        { key: 1, label: '1. Confirm Order' },
+        { key: 2, label: '2. Choose Plan' },
+        { key: 3, label: '3. Shipping' },
+        { key: 4, label: '4. Review & Pay' },
+      ]
 
   // Shipping Form State
   const [shipping, setShipping] = useState({
@@ -51,7 +71,7 @@ export default function CheckoutPage() {
         }))
         const { data } = await supabase
           .from('accounts')
-          .select('full_name, plan')
+          .select('full_name, plan, plan_expires_at')
           .eq('id', activeSession.user.id)
           .single()
         if (data?.full_name) {
@@ -62,6 +82,14 @@ export default function CheckoutPage() {
         }
         if (data?.plan) {
           setUserPlan(data.plan)
+        }
+        if (data?.plan_expires_at) {
+          setUserPlanExpiresAt(data.plan_expires_at)
+          const isCurrentlyPro = (data.plan === 'pro' || data.plan === 'business') &&
+            (!data.plan_expires_at || new Date(data.plan_expires_at) > new Date())
+          if (isCurrentlyPro) {
+            setSelectedPlan('pro')
+          }
         }
       }
     }
@@ -93,7 +121,7 @@ export default function CheckoutPage() {
   
   let planPrice = 0
   if (selectedPlan === 'pro') {
-    if (!session || userPlan === 'free') {
+    if (!hasActivePro) {
       planPrice = 19900 // ₹199 in paise
     }
   }
@@ -204,13 +232,12 @@ export default function CheckoutPage() {
         
         {/* Step Indicator */}
         <div className="flex justify-center items-center gap-4 mb-12">
-          {['1. Confirm Order', '2. Choose Plan', '3. Shipping', '4. Review & Pay'].map((s, i) => {
-            const idx = i + 1
-            const isCurrent = step === idx
-            const isDone = step > idx
+          {stepsList.map((s, i) => {
+            const isCurrent = step === s.key
+            const isDone = step > s.key
             return (
               <div 
-                key={s} 
+                key={s.key} 
                 className={`text-xs sm:text-sm font-semibold pb-2 border-b-2 transition-colors ${
                   isCurrent 
                     ? 'border-purple-600 text-purple-600 dark:text-purple-400' 
@@ -219,7 +246,7 @@ export default function CheckoutPage() {
                     : 'border-transparent text-[var(--text-muted)]'
                 }`}
               >
-                {s}
+                {s.label}
               </div>
             )
           })}
@@ -435,10 +462,10 @@ export default function CheckoutPage() {
                     <ArrowLeft size={14} /> Back to Cart
                   </button>
                   <button
-                    onClick={() => setStep(2)}
+                    onClick={() => setStep(hasActivePro ? 3 : 2)}
                     className="px-6 py-2.5 rounded-btn font-medium text-white text-xs bg-gradient-primary hover:bg-gradient-primary-hover shadow-purple-md cursor-pointer"
                   >
-                    Continue to Choose Plan
+                    {hasActivePro ? 'Continue to Shipping' : 'Continue to Choose Plan'}
                   </button>
                 </div>
               </div>
@@ -467,9 +494,15 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                {session && userPlan === 'pro' && (
+                {session && userPlan === 'pro' && hasActivePro && (
                   <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/15 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
                     ✨ You already have the <span className="font-bold">Pro Profile Plan</span> active on your account! (No additional charge will apply for your profile services).
+                  </div>
+                )}
+
+                {session && userPlan === 'pro' && !hasActivePro && (
+                  <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/15 text-xs text-amber-600 dark:text-amber-400 font-medium animate-fadeIn">
+                    ⚠️ Your Pro Profile Plan subscription has expired. You can renew your subscription below for the quoted price of ₹199/month to keep using premium themes, lead capture form, and profile analytics.
                   </div>
                 )}
 
@@ -525,10 +558,10 @@ export default function CheckoutPage() {
                     </div>
                     <div>
                       <span className="text-2xl font-bold text-[var(--text-primary)]">
-                        {session && userPlan === 'pro' ? '₹0' : '₹199'}
+                        {session && userPlan === 'pro' && hasActivePro ? '₹0' : '₹199'}
                       </span>
                       <span className="text-xs text-[var(--text-muted)]">
-                        {session && userPlan === 'pro' ? ' (Included)' : '/month'}
+                        {session && userPlan === 'pro' && hasActivePro ? ' (Included)' : '/month'}
                       </span>
                     </div>
                   </button>
@@ -656,7 +689,7 @@ export default function CheckoutPage() {
 
                 <div className="flex gap-4 pt-2">
                   <button
-                    onClick={() => setStep(2)}
+                    onClick={() => setStep(hasActivePro ? 1 : 2)}
                     className="px-4 py-2 rounded-btn border border-[var(--border)] bg-transparent hover:bg-[var(--bg-muted)] text-[var(--text-secondary)] text-xs flex items-center gap-1 cursor-pointer"
                   >
                     <ArrowLeft size={14} /> Back
@@ -780,7 +813,7 @@ export default function CheckoutPage() {
               <div className="flex justify-between">
                 <span>Digital Profile Plan</span>
                 {selectedPlan === 'pro' ? (
-                  session && userPlan === 'pro' ? (
+                  hasActivePro ? (
                     <span className="font-bold text-emerald-600 dark:text-emerald-400">Pro (Active - ₹0)</span>
                   ) : (
                     <span className="font-bold text-purple-600 dark:text-purple-400">Pro (+₹199/month)</span>

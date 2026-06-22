@@ -38,8 +38,8 @@ export default function UnifiedDesignPage() {
   // Configure States
   const [title, setTitle] = useState('') // Maps to name on card
   const [description, setDescription] = useState('') // Maps to description on card
-  const [customSlug, setCustomSlug] = useState('')
-  const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle')
+  const [customSlugs, setCustomSlugs] = useState<string[]>([''])
+  const [slugStatuses, setSlugStatuses] = useState<('idle' | 'checking' | 'available' | 'taken' | 'invalid')[]>(['idle'])
   const [bgType, setBgType] = useState<'solid' | 'custom'>('solid')
   const [selectedColor, setSelectedColor] = useState(SOLID_COLORS[0])
   const [quantity, setQuantity] = useState(1)
@@ -78,8 +78,8 @@ export default function UnifiedDesignPage() {
   const handleResetDesign = () => {
     setTitle('')
     setDescription('')
-    setCustomSlug('')
-    setSlugStatus('idle')
+    setCustomSlugs([''])
+    setSlugStatuses(['idle'])
     setBgType('solid')
     setSelectedColor(SOLID_COLORS[0])
     setMaterial('PVC')
@@ -151,9 +151,12 @@ export default function UnifiedDesignPage() {
           if (editData.bgTranslateX !== undefined) setBgTranslateX(editData.bgTranslateX)
           if (editData.bgTranslateY !== undefined) setBgTranslateY(editData.bgTranslateY)
         }
-        if (editData.customSlug) {
-          setCustomSlug(editData.customSlug)
-          setSlugStatus('available')
+        if (editData.customSlugs && Array.isArray(editData.customSlugs)) {
+          setCustomSlugs(editData.customSlugs)
+          setSlugStatuses(editData.customSlugs.map(() => 'available'))
+        } else if (editData.customSlug) {
+          setCustomSlugs([editData.customSlug])
+          setSlugStatuses(['available'])
         }
         setEditingItemId(editData.id || null)
       } catch (e) {
@@ -163,60 +166,115 @@ export default function UnifiedDesignPage() {
     }
   }, [])
 
-  const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value
+  const handleSlugChange = (index: number, val: string) => {
+    const raw = val
     // Convert to lowercase, replace spaces with hyphens, remove any other invalid characters
     const sanitized = raw
       .toLowerCase()
       .replace(/\s+/g, '-')
       .replace(/[^a-z0-9-_]/g, '')
     
-    setCustomSlug(sanitized)
+    setCustomSlugs(prev => {
+      const next = [...prev]
+      next[index] = sanitized
+      return next
+    })
     
-    if (sanitized === '') {
-      setSlugStatus('idle')
-      return
-    }
-    
-    if (sanitized.length < 3 || sanitized.length > 25) {
-      setSlugStatus('invalid')
-      return
-    }
-    
-    setSlugStatus('checking')
+    setSlugStatuses(prev => {
+      const next = [...prev]
+      if (sanitized === '') {
+        next[index] = 'idle'
+      } else if (sanitized.length < 3 || sanitized.length > 25) {
+        next[index] = 'invalid'
+      } else {
+        next[index] = 'checking'
+      }
+      return next
+    })
   }
+
+  // Dynamically keep slugs array size matched to quantity
+  useEffect(() => {
+    setCustomSlugs(prev => {
+      const next = [...prev]
+      if (next.length < quantity) {
+        while (next.length < quantity) {
+          next.push('')
+        }
+      } else if (next.length > quantity) {
+        next.splice(quantity)
+      }
+      return next
+    })
+    setSlugStatuses(prev => {
+      const next = [...prev]
+      if (next.length < quantity) {
+        while (next.length < quantity) {
+          next.push('idle')
+        }
+      } else if (next.length > quantity) {
+        next.splice(quantity)
+      }
+      return next
+    })
+  }, [quantity])
 
   // Debounced database query for slug uniqueness check
   useEffect(() => {
-    if (slugStatus !== 'checking' || !customSlug) return
+    const checkingIndices = slugStatuses.map((status, idx) => status === 'checking' ? idx : -1).filter(idx => idx !== -1)
+    if (checkingIndices.length === 0) return
 
     const timer = setTimeout(async () => {
-      try {
-        const { data, error } = await supabase
-          .from('nfc_cards')
-          .select('id')
-          .eq('slug', customSlug)
-          .maybeSingle()
+      for (const index of checkingIndices) {
+        const slugToCheck = customSlugs[index]
+        if (!slugToCheck) continue
 
-        if (error) {
-          console.error('Error checking slug availability:', error)
-          setSlugStatus('available') // fallback
-          return
-        }
+        try {
+          // Check for duplicate custom slug choice within this design session first
+          const duplicateIdx = customSlugs.findIndex((s, idx) => s === slugToCheck && idx !== index)
+          if (duplicateIdx !== -1) {
+            setSlugStatuses(prev => {
+              const next = [...prev]
+              next[index] = 'taken'
+              return next
+            })
+            continue
+          }
 
-        if (data) {
-          setSlugStatus('taken')
-        } else {
-          setSlugStatus('available')
+          const { data, error } = await supabase
+            .from('nfc_cards')
+            .select('id')
+            .eq('slug', slugToCheck)
+            .maybeSingle()
+
+          if (error) {
+            console.error('Error checking slug availability:', error)
+            setSlugStatuses(prev => {
+              const next = [...prev]
+              next[index] = 'available' // fallback
+              return next
+            })
+            continue
+          }
+
+          setSlugStatuses(prev => {
+            const next = [...prev]
+            next[index] = data ? 'taken' : 'available'
+            return next
+          })
+        } catch (err) {
+          console.error('Failed to query slug availability:', err)
+          setSlugStatuses(prev => {
+            const next = [...prev]
+            next[index] = 'available' // fallback
+            return next
+          })
         }
-      } catch (err) {
-        console.error('Failed to query slug availability:', err)
-        setSlugStatus('available') // fallback
       }
     }, 500)
 
     return () => clearTimeout(timer)
-  }, [customSlug, slugStatus, supabase])
+  }, [customSlugs, slugStatuses, supabase])
 
   // Handle uploading files
   const handleFileUpload = async (file: File, type: 'bg' | 'logo') => {
@@ -286,7 +344,7 @@ export default function UnifiedDesignPage() {
   const totalPrice = singleCardPrice * quantity
 
   // Validate custom slug availability
-  const isSlugInvalid = customSlug.length > 0 && slugStatus !== 'available'
+  const isSlugInvalid = customSlugs.some((slug, idx) => slug.length > 0 && slugStatuses[idx] !== 'available')
 
   // Cart item insertion helper
   const getCartItemDetails = () => {
@@ -308,7 +366,8 @@ export default function UnifiedDesignPage() {
       logoHeight: logoHeight || 32,
       logoPlacement: logoPlacement || 'top-left',
       logoplacement: logoPlacement || 'top-left', // logoplacement variant
-      customSlug: customSlug.trim().toLowerCase() || undefined,
+      customSlug: customSlugs[0]?.trim().toLowerCase() || undefined,
+      customSlugs: customSlugs.map(s => s.trim().toLowerCase()).filter(Boolean),
       ...(bgType === 'solid' 
         ? { colorName: selectedColor.name, colorHex: selectedColor.hex }
         : { 
@@ -814,58 +873,7 @@ export default function UnifiedDesignPage() {
               )}
             </div>
 
-            {/* Field 2.5: Claim Custom Profile Link */}
-            <div className="space-y-1.5">
-              <div className="flex justify-between items-center">
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                  Claim Your Custom Profile Link
-                </label>
-                <span className="text-[10px] text-[var(--text-muted)]">Optional</span>
-              </div>
-              <div className="flex rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] overflow-hidden focus-within:border-purple-600 transition-colors">
-                <span className="flex items-center px-3.5 bg-[var(--bg-muted)] border-r border-[var(--border)] text-xs text-[var(--text-secondary)] font-medium select-none">
-                  envitra.in/u/
-                </span>
-                <input
-                  type="text"
-                  maxLength={25}
-                  placeholder="your-name"
-                  value={customSlug}
-                  onChange={handleSlugChange}
-                  className="w-full px-3.5 py-3 bg-transparent text-sm focus:outline-none text-[var(--text-primary)]"
-                />
-              </div>
-              
-              {/* Slug status indicators */}
-              {customSlug && (
-                <div className="mt-1 flex items-center gap-1.5 text-xs animate-fadeIn">
-                  {slugStatus === 'checking' && (
-                    <span className="text-[var(--text-muted)] flex items-center gap-1">
-                      <span className="w-2 h-2 rounded-full bg-zinc-400 animate-pulse shrink-0" />
-                      Checking availability...
-                    </span>
-                  )}
-                  {slugStatus === 'available' && (
-                    <span className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
-                      <Check size={12} className="shrink-0" />
-                      envitra.in/u/{customSlug} is available!
-                    </span>
-                  )}
-                  {slugStatus === 'taken' && (
-                    <span className="text-red-500 font-medium flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
-                      This handle is already taken
-                    </span>
-                  )}
-                  {slugStatus === 'invalid' && (
-                    <span className="text-amber-500 font-medium flex items-center gap-1 text-[11px] leading-tight">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
-                      Must be 3 to 25 characters (lowercase letters, numbers, hyphens, underscores)
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
+
 
             {/* Field 3: Chips for Solid Color vs Custom Background */}
             <div className="space-y-3">
@@ -1198,19 +1206,95 @@ export default function UnifiedDesignPage() {
 
           </div>
 
-          {/* Pricing Box & Description */}
+          {/* Quantity Selector (Now showing right below Add Brand Logo Overlay) */}
+          <div className="space-y-2 pt-4 border-t border-[var(--border)]">
+            <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] block">
+              Choose Card Quantity
+            </label>
+            <div className="flex items-center justify-between bg-[var(--bg-muted)] px-4 py-3 rounded-xl border border-[var(--border)]">
+              <span className="text-xs font-bold text-[var(--text-secondary)]">Quantity</span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="w-8 h-8 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] flex items-center justify-center font-bold text-sm cursor-pointer select-none transition-colors"
+                >
+                  -
+                </button>
+                <span className="text-sm font-semibold w-6 text-center">{quantity}</span>
+                <button
+                  type="button"
+                  onClick={() => setQuantity(Math.min(10, quantity + 1))}
+                  className="w-8 h-8 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] flex items-center justify-center font-bold text-sm cursor-pointer select-none transition-colors"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Custom Slug Profile Links (Now showing below Quantity) */}
+          <div className="space-y-4 pt-4 border-t border-[var(--border)]">
+            {Array.from({ length: quantity }).map((_, idx) => (
+              <div key={idx} className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                    {quantity > 1 ? `Claim Custom Profile Link for Card ${idx + 1}` : 'Claim Your Custom Profile Link'}
+                  </label>
+                  <span className="text-[10px] text-[var(--text-muted)]">Optional</span>
+                </div>
+                <div className="flex rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] overflow-hidden focus-within:border-purple-600 transition-colors">
+                  <span className="flex items-center px-3.5 bg-[var(--bg-muted)] border-r border-[var(--border)] text-xs text-[var(--text-secondary)] font-medium select-none">
+                    envitra.in/u/
+                  </span>
+                  <input
+                    type="text"
+                    maxLength={25}
+                    placeholder={idx === 0 ? "your-name" : `your-name-${idx + 1}`}
+                    value={customSlugs[idx] || ''}
+                    onChange={(e) => handleSlugChange(idx, e.target.value)}
+                    className="w-full px-3.5 py-3 bg-transparent text-sm focus:outline-none text-[var(--text-primary)]"
+                  />
+                </div>
+                
+                {/* Slug status indicators */}
+                {customSlugs[idx] && (
+                  <div className="mt-1 flex items-center gap-1.5 text-xs animate-fadeIn">
+                    {slugStatuses[idx] === 'checking' && (
+                      <span className="text-[var(--text-muted)] flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-zinc-400 animate-pulse shrink-0" />
+                        Checking availability...
+                      </span>
+                    )}
+                    {slugStatuses[idx] === 'available' && (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                        <Check size={12} className="shrink-0" />
+                        envitra.in/u/{customSlugs[idx]} is available!
+                      </span>
+                    )}
+                    {slugStatuses[idx] === 'taken' && (
+                      <span className="text-red-500 font-medium flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                        This handle is taken or duplicate
+                      </span>
+                    )}
+                    {slugStatuses[idx] === 'invalid' && (
+                      <span className="text-amber-500 font-medium flex items-center gap-1 text-[11px] leading-tight">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                        Must be 3 to 25 characters (lowercase letters, numbers, hyphens, underscores)
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Pricing & Billing Details Summary (Now showing below Slugs) */}
           <div className="mt-8 w-full bg-[var(--bg-muted)] p-5 rounded-2xl border border-[var(--border)] space-y-4 animate-fadeIn">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-sm font-bold text-[var(--text-primary)]">Envitra NFC Smart Card</h3>
-                <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">Custom layout & design included</p>
-              </div>
-              <div className="text-right">
-                <span className="text-2xl font-black text-purple-600 dark:text-purple-400">
-                  {formatPrice(singleCardPrice)}
-                </span>
-                <p className="text-[9px] text-[var(--text-muted)] font-bold">One-time purchase</p>
-              </div>
+            <div>
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">Billing Summary</h3>
+              <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">Envitra NFC Smart Card configurations</p>
             </div>
 
             <hr className="border-[var(--border)]" />
@@ -1243,6 +1327,24 @@ export default function UnifiedDesignPage() {
 
             <hr className="border-[var(--border)]" />
 
+            {/* Billing totals section */}
+            <div className="space-y-2 text-xs font-semibold text-[var(--text-secondary)] bg-[var(--bg-surface)] p-3 rounded-xl border border-[var(--border)]">
+              <div className="flex justify-between items-center">
+                <span>Price per Card</span>
+                <span className="text-[var(--text-primary)] font-bold">{formatPrice(singleCardPrice)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Selected Quantity</span>
+                <span className="text-[var(--text-primary)] font-bold">{quantity}x</span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-[var(--border)] text-sm font-bold text-[var(--text-primary)]">
+                <span>Grand Total</span>
+                <span className="text-purple-600 dark:text-purple-400 text-lg font-black">{formatPrice(totalPrice)}</span>
+              </div>
+            </div>
+
+            <hr className="border-[var(--border)]" />
+
             <div className="grid grid-cols-2 gap-3 text-[10px] text-[var(--text-secondary)] font-medium">
               <div className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -1263,37 +1365,13 @@ export default function UnifiedDesignPage() {
             </div>
           </div>
 
-          {/* Quantity & Action Buttons */}
+          {/* Action Buttons (Add to Cart / Buy Now / Reset) */}
           <div className="mt-6 w-full space-y-4">
-            
-            {/* Quantity Selector */}
-            <div className="flex items-center justify-between bg-[var(--bg-muted)] px-4 py-3 rounded-xl border border-[var(--border)]">
-              <span className="text-xs font-bold text-[var(--text-secondary)]">Quantity</span>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-8 h-8 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] flex items-center justify-center font-bold text-sm cursor-pointer select-none transition-colors"
-                >
-                  -
-                </button>
-                <span className="text-sm font-semibold w-6 text-center">{quantity}</span>
-                <button
-                  type="button"
-                  onClick={() => setQuantity(Math.min(10, quantity + 1))}
-                  className="w-8 h-8 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-muted)] flex items-center justify-center font-bold text-sm cursor-pointer select-none transition-colors"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-
-            {/* Add to Cart & Buy Buttons */}
             <div className="grid grid-cols-2 gap-3.5">
               <button
                 type="button"
                 onClick={handleAddToCart}
-                disabled={isSlugInvalid || slugStatus === 'checking'}
+                disabled={isSlugInvalid || slugStatuses.some(status => status === 'checking')}
                 className="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-bold text-xs border-2 border-purple-600/30 hover:border-purple-600/60 bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--bg-muted)] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <ShoppingBag size={15} /> Add to Cart
@@ -1302,7 +1380,7 @@ export default function UnifiedDesignPage() {
               <button
                 type="button"
                 onClick={handleBuyNow}
-                disabled={isSlugInvalid || slugStatus === 'checking'}
+                disabled={isSlugInvalid || slugStatuses.some(status => status === 'checking')}
                 className="inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl font-bold text-xs text-white bg-gradient-primary hover:bg-gradient-primary-hover shadow-purple-md hover:shadow-purple-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <CreditCard size={15} /> Buy Now
@@ -1318,16 +1396,16 @@ export default function UnifiedDesignPage() {
             <p className="text-[10px] text-[var(--text-muted)] text-center font-medium">
               🔒 Secure checkout • 18% GST added at payment screen
             </p>
-          </div>
 
-          <div className="pt-5 border-t border-[var(--border)] flex justify-end">
-            <button
-              type="button"
-              onClick={handleResetDesign}
-              className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 hover:text-red-600 rounded-xl font-bold text-xs transition-colors cursor-pointer"
-            >
-              Reset Design
-            </button>
+            <div className="pt-5 border-t border-[var(--border)] flex justify-end">
+              <button
+                type="button"
+                onClick={handleResetDesign}
+                className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 hover:text-red-600 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+              >
+                Reset Design
+              </button>
+            </div>
           </div>
 
         </div>

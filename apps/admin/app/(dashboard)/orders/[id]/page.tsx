@@ -3,12 +3,18 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { formatPrice, isDarkColor } from '@/lib/utils'
+import { formatPrice, isDarkColor, cn } from '@/lib/utils'
 import { 
   ArrowLeft, Loader2, User, MapPin, CreditCard, 
   Settings, Truck, Check, FileText, Download, RefreshCw,
-  Clipboard, ChevronRight, Eye, Sparkles
+  Clipboard, ChevronRight, Eye, Sparkles, ChevronDown, AlertCircle
 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
 import JSZip from 'jszip'
 
 export default function AdminOrderDetailPage() {
@@ -37,10 +43,36 @@ export default function AdminOrderDetailPage() {
 
   // Stepper state
   const [adminStep, setAdminStep] = useState(1)
+  const [hasInitializedStep, setHasInitializedStep] = useState(false)
+
+  // Step 1 checklist states
+  const [chkS1Contact, setChkS1Contact] = useState(false)
+  const [chkS1Layout, setChkS1Layout] = useState(false)
+  const [chkS1Slugs, setChkS1Slugs] = useState(false)
+  const [chkS1Bypass, setChkS1Bypass] = useState(false)
+
+  // Step 2 checklist states
+  const [chkS2Visualizer, setChkS2Visualizer] = useState(false)
+  const [chkS2Assets, setChkS2Assets] = useState(false)
+  const [chkS2Hardware, setChkS2Hardware] = useState(false)
+  const [chkS2Scan, setChkS2Scan] = useState(false)
+
+  // Step 3 checklist states
+  const [chkS3Quality, setChkS3Quality] = useState(false)
+  const [chkS3Pack, setChkS3Pack] = useState(false)
+  const [chkS3Handover, setChkS3Handover] = useState(false)
+  const [chkS3Delivered, setChkS3Delivered] = useState(false)
+
+  // Post-dispatch edit state
+  const [isEditingDispatch, setIsEditingDispatch] = useState(false)
   // Active Card Preview Index for visual inspections
   const [activeCardId, setActiveCardId] = useState<string | null>(null)
   // Front / Back side toggler for the live preview
   const [cardSideMap, setCardSideMap] = useState<Record<string, 'front' | 'back'>>({})
+  // Selected configuration item for modal details
+  const [selectedConfigItem, setSelectedConfigItem] = useState<any>(null)
+  // Selected card index map for switching previews when quantity > 1
+  const [selectedCardIdxMap, setSelectedCardIdxMap] = useState<Record<string, number>>({})
 
   const handleDownloadFile = async (url: string, filename: string) => {
     if (!url) return
@@ -534,6 +566,11 @@ Personalization Details:
                   <td style="text-align: left; padding: 5px 0; color: #475569;">Pro Profile Upgrade (1 Month)</td>
                   <td style="text-align: right; padding: 5px 0; font-weight: 500; color: #7c3aed;">₹${planInr.toFixed(2)}</td>
                 </tr>
+                ` : isProOrder ? `
+                <tr>
+                  <td style="text-align: left; padding: 5px 0; color: #475569;">Pro Profile Plan</td>
+                  <td style="text-align: right; padding: 5px 0; font-weight: 600; color: #16a34a;">Active (Included)</td>
+                </tr>
                 ` : `
                 <tr>
                   <td style="text-align: left; padding: 5px 0; color: #475569;">Digital Profile Plan</td>
@@ -569,81 +606,24 @@ Personalization Details:
 
   const fetchOrderDetails = async () => {
     try {
-      const { data: orderData, error: orderErr } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('id', orderId)
-        .single()
-
-      if (orderErr || !orderData) {
-        // Fallback to mock order
-        const mockOrder = {
-          id: 'ord-1004',
-          order_number: 'ENV-2026-1004',
-          contact_email: 'priya.s@uxdesign.in',
-          contact_phone: '9876543210',
-          shipping_address: { 
-            fullName: 'Priya S.',
-            email: 'priya.s@uxdesign.in',
-            phone: '9876543210',
-            addressLine1: '404 UX Lab, 2nd Cross Road',
-            addressLine2: 'Indiranagar',
-            city: 'Bengaluru',
-            state: 'Karnataka',
-            pincode: '560038'
-          },
-          total_inr: 149800,
-          subtotal_inr: 129900,
-          gst_inr: 19900,
-          plan_charge_inr: 19900,
-          status: 'pending_production',
-          created_at: new Date().toISOString(),
-          razorpay_order_id: 'rzp_order_abc123',
-          razorpay_payment_id: 'pay_abc123xyz',
-          invoice_number: 'INV-2026-1004',
+      const res = await fetch(`/api/orders/${orderId}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.order) {
+          setOrder(data.order)
+          setItems(data.items || [])
+          setProvisionedCards(data.provisionedCards || [])
+          return
         }
-        setOrder(mockOrder)
-        
-        const mockItems = [{
-          id: 'item-101',
-          order_id: 'ord-1004',
-          product_name: 'Botanica Design',
-          product_type: 'design',
-          material: 'Recycled PVC',
-          quantity: 1,
-          price_inr: 129900,
-          personalisation: {
-            designName: 'Botanica',
-            name: 'Priya S.',
-            tagline: 'UX Designer · Chennai',
-          }
-        }]
-        setItems(mockItems)
-        return
       }
-
-      setOrder(orderData)
-
-      // Fetch Items
-      const { data: itemsData } = await supabase
-        .from('order_items')
-        .select('*')
-        .eq('order_id', orderId)
-      
-      if (itemsData) setItems(itemsData)
-
-      // Fetch provisioned cards
-      const itemIds = itemsData?.map((item) => item.id) || []
-      if (itemIds.length > 0) {
-        const { data: cards } = await supabase
-          .from('nfc_cards')
-          .select('*')
-          .in('order_item_id', itemIds)
-        if (cards) setProvisionedCards(cards)
-      }
-
+      setOrder(null)
+      setItems([])
+      setProvisionedCards([])
     } catch (err) {
       console.error(err)
+      setOrder(null)
+      setItems([])
+      setProvisionedCards([])
     } finally {
       setLoading(false)
     }
@@ -702,6 +682,61 @@ Personalization Details:
     }
   }, [orderId])
 
+  useEffect(() => {
+    if (order && !hasInitializedStep) {
+      const status = order.status
+      if (status === 'pending_payment') {
+        setAdminStep(1)
+      } else if (status === 'pending_production' || status === 'in_production') {
+        setAdminStep(2)
+      } else if (status === 'dispatched' || status === 'delivered') {
+        setAdminStep(3)
+      }
+      setHasInitializedStep(true)
+    }
+  }, [order, hasInitializedStep])
+
+  const getAutoTrackingUrl = (courier: string, trackingNum: string): string => {
+    const cleanNum = trackingNum.trim()
+    if (!cleanNum) return ''
+    switch (courier) {
+      case 'Delhivery':
+        return `https://track.delhivery.com/query?key=${cleanNum}`
+      case 'DTDC':
+        return `https://www.dtdc.in/tracking/tracking_results.asp?pinno=${cleanNum}`
+      case 'Blue Dart':
+        return `https://www.bluedart.com/tracking?trackid=${cleanNum}`
+      case 'Ekart':
+        return `https://ekartlogistics.com/track/${cleanNum}`
+      case 'India Post':
+        return `https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx?ConsignmentNo=${cleanNum}`
+      default:
+        return ''
+    }
+  }
+
+  const handleTrackingNumberChange = (num: string) => {
+    setTrackingNumber(num)
+    const autoUrl = getAutoTrackingUrl(courierName, num)
+    setTrackingUrl(autoUrl)
+  }
+
+  const handleCourierSelect = (courier: string) => {
+    setCourierName(courier)
+    const autoUrl = getAutoTrackingUrl(courier, trackingNumber)
+    setTrackingUrl(autoUrl)
+  }
+
+  const startEditingDispatch = () => {
+    if (order) {
+      setCourierName(order.courier_name || 'Delhivery')
+      setTrackingNumber(order.tracking_number || '')
+      setTrackingUrl(order.tracking_url || '')
+      setAdminNotes(order.admin_notes || '')
+      setIsEditingDispatch(true)
+    }
+  }
+
   // Handles provisioning card numbers & URLs & QR codes
   const handleProvision = async () => {
     setProvisioning(true)
@@ -713,22 +748,33 @@ Personalization Details:
       })
 
       if (!res.ok) {
-        throw new Error('Provisioning failed')
+        let errMsg = 'Provisioning failed'
+        try {
+          const errData = await res.json()
+          if (errData && errData.error) errMsg = errData.error
+        } catch {}
+        throw new Error(errMsg)
       }
       
       await fetchOrderDetails()
       alert('Cards successfully provisioned and slugs/QR codes generated!')
-    } catch {
+    } catch (err: any) {
+      console.error('Provision failed:', err)
+      alert(`Provision failed: ${err?.message || err}. Falling back to offline simulation...`)
+      
       // Mock Fallback offline flow
       const mockCards: any[] = []
       items.forEach((item) => {
         const quantity = item.quantity || 1
-        const customSlug = item.personalisation?.customSlug
+        const customSlugs = item.personalisation?.customSlugs || []
+        const fallbackCustomSlug = item.personalisation?.customSlug
         
         for (let i = 0; i < quantity; i++) {
           let slug = ''
-          if (customSlug) {
-            const baseSlug = customSlug.trim().toLowerCase()
+          if (customSlugs[i]) {
+            slug = customSlugs[i].trim().toLowerCase()
+          } else if (fallbackCustomSlug) {
+            const baseSlug = fallbackCustomSlug.trim().toLowerCase()
             slug = i === 0 ? baseSlug : `${baseSlug}-${i + 1}`
           } else {
             slug = Math.random().toString(36).substring(2, 10).toUpperCase()
@@ -747,10 +793,45 @@ Personalization Details:
       })
       setProvisionedCards(mockCards)
       setOrder((prev: any) => ({ ...prev, status: 'in_production' }))
-      alert('Mock Provision Success: QR codes and URLs created offline.')
     } finally {
       setProvisioning(false)
     }
+  }
+
+  const handleProceedToProduction = async () => {
+    if (order && order.status === 'pending_payment') {
+      try {
+        const res = await fetch(`/api/orders/${orderId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'pending_production' }),
+        })
+        if (!res.ok) throw new Error('Failed to update status')
+        await fetchOrderDetails()
+      } catch (err) {
+        console.error(err)
+        setOrder((prev: any) => ({ ...prev, status: 'pending_production' }))
+      }
+    }
+    setAdminStep(2)
+  }
+
+  const handleContinueToStep3 = async () => {
+    if (order && order.status === 'pending_production') {
+      try {
+        const res = await fetch(`/api/orders/${orderId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'in_production' }),
+        })
+        if (!res.ok) throw new Error('Failed to update status')
+        await fetchOrderDetails()
+      } catch (err) {
+        console.error(err)
+        setOrder((prev: any) => ({ ...prev, status: 'in_production' }))
+      }
+    }
+    setAdminStep(3)
   }
 
   // Handles dispatch tracking updates
@@ -778,7 +859,8 @@ Personalization Details:
       if (!res.ok) throw new Error('Dispatch request failed')
 
       await fetchOrderDetails()
-      alert('Order successfully marked as dispatched!')
+      alert(isEditingDispatch ? 'Tracking details successfully updated!' : 'Order successfully marked as dispatched!')
+      setIsEditingDispatch(false)
     } catch {
       setOrder((prev: any) => ({
         ...prev,
@@ -789,7 +871,8 @@ Personalization Details:
         admin_notes: adminNotes || null,
         dispatched_at: new Date().toISOString(),
       }))
-      alert('Mock Dispatch Success: Order updated offline.')
+      alert(isEditingDispatch ? 'Mock Update Success: Order updated offline.' : 'Mock Dispatch Success: Order updated offline.')
+      setIsEditingDispatch(false)
     } finally {
       setDispatching(false)
     }
@@ -797,21 +880,28 @@ Personalization Details:
 
   // Handles delivery updates
   const handleMarkDelivered = async () => {
+    const confirm = window.confirm('Are you sure you want to mark this package as delivered? This will finalize the order timeline.')
+    if (!confirm) return
+
     setUpdatingDelivery(true)
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          status: 'delivered', 
-          delivered_at: new Date().toISOString() 
-        })
-        .eq('id', orderId)
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'delivered',
+          deliveredAt: new Date().toISOString(),
+        }),
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        throw new Error('Failed to update status on server')
+      }
 
       await fetchOrderDetails()
       alert('Order successfully marked as delivered!')
-    } catch {
+    } catch (err) {
+      console.error(err)
       setOrder((prev: any) => ({
         ...prev,
         status: 'delivered',
@@ -831,7 +921,27 @@ Personalization Details:
     )
   }
 
-  if (!order) return <p className="text-center text-zinc-500">Order details not loaded.</p>
+  if (!order) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 animate-fadeIn">
+        <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl p-8 max-w-md w-full text-center shadow-lg backdrop-blur-md">
+          <div className="mx-auto w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mb-4">
+            <AlertCircle size={24} />
+          </div>
+          <h2 className="text-lg font-bold text-[var(--text-primary)] mb-2">Order Not Found</h2>
+          <p className="text-xs text-[var(--text-secondary)] mb-6 leading-relaxed">
+            The order with ID <span className="font-mono bg-[var(--bg-muted)] px-1.5 py-0.5 rounded border border-[var(--border)]">{orderId}</span> could not be found or has been removed from the system.
+          </p>
+          <button
+            onClick={() => router.push('/orders')}
+            className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-btn font-semibold text-white text-xs bg-blue-600 hover:bg-blue-700 shadow-sm transition-all duration-200 cursor-pointer w-full"
+          >
+            <ArrowLeft size={14} /> Back to Orders
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   // Compute pricing breakdown for display in Step 1
   const getAdminPricingBreakdown = () => {
@@ -875,6 +985,11 @@ Personalization Details:
       logoUpgradesTotal,
     }
   }
+
+  const isProOrder = 
+    order?.plan_charge_inr > 0 ||
+    ((order?.accounts?.plan === 'pro' || order?.accounts?.plan === 'business') &&
+     (!order?.accounts?.plan_expires_at || new Date(order?.created_at) <= new Date(order?.accounts?.plan_expires_at)))
 
   const breakdown = getAdminPricingBreakdown()
 
@@ -922,7 +1037,7 @@ Personalization Details:
                 onClick={() => setAdminStep(s.stepNum)}
                 className={`text-xs font-bold pb-1 border-b-2 transition-all cursor-pointer ${
                   isActive 
-                    ? 'border-purple-600 text-purple-600 dark:text-purple-400 font-extrabold' 
+                    ? 'border-blue-600 text-blue-600 dark:text-blue-400 font-extrabold' 
                     : isCompleted 
                     ? 'border-emerald-500 text-emerald-500' 
                     : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
@@ -934,7 +1049,7 @@ Personalization Details:
           })}
         </div>
 
-        <span className="inline-flex px-3 py-1 rounded-full bg-purple-600/10 border border-purple-600/20 text-purple-600 text-xs font-semibold uppercase tracking-wider">
+        <span className="inline-flex px-3 py-1 rounded-full bg-blue-600/10 border border-blue-600/20 text-blue-600 text-xs font-semibold uppercase tracking-wider">
           {order.status.replace('_', ' ')}
         </span>
       </div>
@@ -966,7 +1081,11 @@ Personalization Details:
                 </div>
                 <div className="space-y-1">
                   <p className="text-[var(--text-muted)] font-medium">Selected Digital Plan</p>
-                  <p className="font-bold text-purple-600 dark:text-purple-400 capitalize">{order.plan_charge_inr > 0 ? 'PRO PLAN (₹199/mo)' : 'FREE PLAN'}</p>
+                  <p className="font-bold text-blue-600 dark:text-blue-400 capitalize">
+                    {isProOrder
+                      ? `PRO PLAN ${order.plan_charge_inr > 0 ? '(₹199/mo Billed)' : '(Active Complimentary)'}`
+                      : 'FREE PLAN'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -986,7 +1105,7 @@ Personalization Details:
                     {order.invoice_number && (
                       <button 
                         onClick={handleDownloadInvoice}
-                        className="text-purple-600 dark:text-purple-400 font-bold hover:underline cursor-pointer inline-flex items-center gap-0.5 ml-2"
+                        className="text-blue-600 dark:text-blue-400 font-bold hover:underline cursor-pointer inline-flex items-center gap-0.5 ml-2"
                       >
                         Print/Save PDF
                       </button>
@@ -1018,7 +1137,15 @@ Personalization Details:
                       <span className="text-[var(--text-muted)]">({item.material || 'Standard PVC'})</span>
                       <p className="text-[10px] text-[var(--text-muted)]">Personalised for: <strong className="text-[var(--text-primary)]">{item.personalisation?.title || item.personalisation?.name || 'N/A'}</strong></p>
                     </div>
-                    <span className="font-bold text-[var(--text-primary)]">{item.quantity} × {formatPrice(item.price_inr)}</span>
+                    <div className="flex items-center gap-4">
+                      <span className="font-bold text-[var(--text-primary)]">{item.quantity} × {formatPrice(item.price_inr)}</span>
+                      <button
+                        onClick={() => setSelectedConfigItem(item)}
+                        className="px-2.5 py-1.5 rounded-lg bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 font-bold text-[10px] cursor-pointer transition-colors"
+                      >
+                        View Card Details
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1073,22 +1200,28 @@ Personalization Details:
 
                 <div className="flex justify-between">
                   <span>Digital Profile Plan</span>
-                  <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                    {order.plan_charge_inr > 0 ? `Pro (+${formatPrice(order.plan_charge_inr)})` : 'Free (₹0)'}
-                  </span>
+                  {isProOrder ? (
+                    order.plan_charge_inr > 0 ? (
+                      <span className="font-bold text-blue-600 dark:text-blue-400">Pro (+{formatPrice(order.plan_charge_inr)})</span>
+                    ) : (
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">Pro (Active - ₹0)</span>
+                    )
+                  ) : (
+                    <span className="font-medium text-[var(--text-muted)]">Free (₹0)</span>
+                  )}
                 </div>
                 
                 <hr className="border-[var(--border)] my-2" />
 
                 <div className="flex justify-between font-bold text-sm text-[var(--text-primary)] pt-1">
                   <span>Total Amount Paid</span>
-                  <span className="text-purple-600 dark:text-purple-400 text-base">{formatPrice(order.total_inr)}</span>
+                  <span className="text-blue-600 dark:text-blue-400 text-base">{formatPrice(order.total_inr)}</span>
                 </div>
               </div>
 
               <button
                 onClick={() => setAdminStep(2)}
-                className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-btn font-semibold text-white text-xs bg-gradient-primary hover:bg-gradient-primary-hover shadow-purple-sm transition-all duration-200 cursor-pointer"
+                className="w-full inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-btn font-semibold text-white text-xs bg-blue-600 hover:bg-blue-700 shadow-sm transition-all duration-200 cursor-pointer"
               >
                 Proceed to Production <ChevronRight size={14} />
               </button>
@@ -1114,7 +1247,7 @@ Personalization Details:
               <button
                 onClick={handleProvision}
                 disabled={provisioning}
-                className="inline-flex items-center justify-center gap-1.5 px-6 py-2.5 rounded-btn font-semibold text-white text-xs bg-gradient-primary hover:bg-gradient-primary-hover shadow-purple-sm disabled:opacity-55 cursor-pointer"
+                className="inline-flex items-center justify-center gap-1.5 px-6 py-2.5 rounded-btn font-semibold text-white text-xs bg-blue-600 hover:bg-blue-700 shadow-sm disabled:opacity-55 cursor-pointer"
               >
                 {provisioning ? 'Provisioning Slugs...' : 'Provision Cards & Generate QRs'}
               </button>
@@ -1129,7 +1262,7 @@ Personalization Details:
                 </h3>
                 <button 
                   onClick={handleDownloadAllAssets}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-btn bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 shadow-purple-sm transition-all cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-btn bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 shadow-sm transition-all cursor-pointer"
                 >
                   <Download size={14} /> Download All Print Files
                 </button>
@@ -1176,6 +1309,8 @@ Personalization Details:
 
                   // Find cards provisioned for this order item
                   const cardRecords = provisionedCards.filter((card) => card.order_item_id === item.id)
+                  const activeCardIdx = selectedCardIdxMap[item.id] || 0
+                  const activeCard = cardRecords[activeCardIdx] || cardRecords[0]
 
                   return (
                     <div key={item.id} className="p-6 rounded-card border border-[var(--border)] bg-[var(--bg-surface)] shadow-sm space-y-6">
@@ -1185,6 +1320,29 @@ Personalization Details:
                         <div className="flex flex-col items-center shrink-0 w-full md:w-[360px] mx-auto xl:mx-0">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2">Live Visualizer</span>
                           
+                          {/* Card Switcher tabs if quantity > 1 */}
+                          {cardRecords.length > 1 && (
+                            <div className="flex flex-wrap gap-1 mt-1 mb-3 bg-[var(--bg-muted)] p-1 rounded-lg border border-[var(--border)] shrink-0 select-none w-full justify-center">
+                              {cardRecords.map((card, idx) => {
+                                const isCurrent = (selectedCardIdxMap[item.id] || 0) === idx
+                                return (
+                                  <button
+                                    key={card.id}
+                                    type="button"
+                                    onClick={() => setSelectedCardIdxMap(prev => ({ ...prev, [item.id]: idx }))}
+                                    className={`px-2 py-0.5 rounded text-[9px] font-bold transition-all cursor-pointer ${
+                                      isCurrent
+                                        ? 'bg-blue-600 text-white shadow-sm'
+                                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                                    }`}
+                                  >
+                                    Card {idx + 1}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+
                           {/* Card Toggler */}
                           <div className="flex gap-2 mb-3 bg-[var(--bg-muted)] p-1 rounded-lg border border-[var(--border)] shrink-0 select-none">
                             {['front', 'back'].map((side) => {
@@ -1196,7 +1354,7 @@ Personalization Details:
                                   onClick={() => setCardSideMap(prev => ({ ...prev, [item.id]: side as any }))}
                                   className={`px-3 py-1 rounded-md text-[10px] font-bold capitalize transition-all cursor-pointer ${
                                     currentSide === side
-                                      ? 'bg-purple-600 text-white shadow-sm'
+                                      ? 'bg-blue-600 text-white shadow-sm'
                                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                                   }`}
                                 >
@@ -1307,9 +1465,9 @@ Personalization Details:
                                   <div className="h-6 w-full" />
                                   <div className="flex flex-col items-center justify-center my-auto">
                                     <div className="p-2 bg-white rounded-xl shadow-md">
-                                      {cardRecords.length > 0 && cardRecords[0].qr_code_url ? (
+                                      {activeCard && activeCard.qr_code_url ? (
                                         <img 
-                                          src={cardRecords[0].qr_code_url} 
+                                          src={activeCard.qr_code_url} 
                                           alt="QR Code" 
                                           className="w-16 h-16 object-contain"
                                         />
@@ -1367,7 +1525,7 @@ Personalization Details:
                               <p className="mt-1">
                                 <span className="text-[var(--text-muted)]">Background:</span>{' '}
                                 {itemBackgroundUrl ? (
-                                  <span className="font-semibold text-purple-600 dark:text-purple-400">Custom Upload</span>
+                                  <span className="font-semibold text-blue-600 dark:text-blue-400">Custom Upload</span>
                                 ) : (
                                   <span className="font-semibold">{pers.colorName || 'Midnight Black'}</span>
                                 )}
@@ -1376,7 +1534,7 @@ Personalization Details:
                               <p className="mt-1">
                                 <span className="text-[var(--text-muted)]">Logo overlay:</span>{' '}
                                 {itemLogoUrl ? (
-                                  <span className="font-semibold text-purple-600 dark:text-purple-400">Custom Logo ({itemLogoPlacement})</span>
+                                  <span className="font-semibold text-blue-600 dark:text-blue-400">Custom Logo ({itemLogoPlacement})</span>
                                 ) : (
                                   <span className="font-semibold text-[var(--text-muted)]">Default Watermark</span>
                                 )}
@@ -1411,7 +1569,7 @@ Personalization Details:
                         <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Provisioned Cards Stock ({cardRecords.length})</p>
                         <div className="grid grid-cols-1 gap-4">
                           {cardRecords.map((card) => (
-                            <div key={card.id} className="p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:border-purple-600/30 transition-all flex flex-col sm:flex-row gap-4 items-center justify-between">
+                            <div key={card.id} className="p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:border-blue-600/30 transition-all flex flex-col sm:flex-row gap-4 items-center justify-between">
                               <div className="flex gap-4 items-center w-full sm:w-auto">
                                 {card.qr_code_url && (
                                   <img 
@@ -1422,13 +1580,13 @@ Personalization Details:
                                 )}
                                 <div className="text-[11px] space-y-0.5 min-w-0 max-w-xs sm:max-w-md truncate">
                                   <p className="font-bold font-mono text-[var(--text-primary)] text-sm">{card.slug}</p>
-                                  <p className="text-[10px] text-purple-600 dark:text-purple-400 truncate" title={card.card_url}>
+                                  <p className="text-[10px] text-blue-600 dark:text-blue-400 truncate" title={card.card_url}>
                                     {card.card_url}
                                   </p>
                                   <span className={`inline-flex px-1.5 py-0.2 rounded text-[8px] font-bold uppercase tracking-wider ${
                                     card.status === 'active' 
                                       ? 'bg-emerald-500/10 text-emerald-500' 
-                                      : 'bg-purple-600/10 text-purple-600'
+                                      : 'bg-blue-600/10 text-blue-600'
                                   }`}>
                                     {card.status}
                                   </span>
@@ -1450,7 +1608,7 @@ Personalization Details:
                                 </button>
                                 <button
                                   onClick={() => handleDownloadAssetsPack(card, item)}
-                                  className="px-3 py-1.5 rounded bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold shadow-sm transition-all cursor-pointer inline-flex items-center gap-1"
+                                  className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold shadow-sm transition-all cursor-pointer inline-flex items-center gap-1"
                                 >
                                   <Download size={11} /> Download Assets Pack
                                 </button>
@@ -1477,7 +1635,7 @@ Personalization Details:
             </button>
             <button
               onClick={() => setAdminStep(3)}
-              className="px-6 py-2 rounded-btn font-semibold text-white text-xs bg-gradient-primary hover:bg-gradient-primary-hover shadow-purple-sm cursor-pointer"
+              className="px-6 py-2 rounded-btn font-semibold text-white text-xs bg-blue-600 hover:bg-blue-700 shadow-sm cursor-pointer"
             >
               Continue to Step 3
             </button>
@@ -1527,18 +1685,34 @@ Personalization Details:
                 <form onSubmit={handleDispatch} className="space-y-3 text-xs">
                   <div className="space-y-1">
                     <label className="text-zinc-400 font-semibold uppercase text-[10px]">Courier Service</label>
-                    <select
-                      value={courierName}
-                      onChange={(e) => setCourierName(e.target.value)}
-                      className="w-full px-2 py-1.5 rounded border border-[var(--border)] bg-[var(--bg-surface)] focus:outline-none"
-                    >
-                      <option value="Delhivery">Delhivery</option>
-                      <option value="DTDC">DTDC</option>
-                      <option value="Blue Dart">Blue Dart</option>
-                      <option value="Ekart">Ekart</option>
-                      <option value="India Post">India Post</option>
-                      <option value="Other">Other</option>
-                    </select>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button type="button" className="w-full h-9 px-3 rounded border border-[var(--border)] bg-[var(--bg-surface)] focus:outline-none flex items-center justify-between cursor-pointer transition-colors text-left">
+                          <span>{courierName}</span>
+                          <ChevronDown className="h-3.5 w-3.5 text-zinc-400 opacity-60 shrink-0" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-card p-1 shadow-lg text-xs text-[var(--text-primary)]">
+                        <DropdownMenuItem onClick={() => setCourierName('Delhivery')} className="flex items-center gap-2 cursor-pointer py-1.5 px-2 hover:bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-muted)] focus:text-[var(--text-primary)] rounded-md transition-colors">
+                          <span>Delhivery</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setCourierName('DTDC')} className="flex items-center gap-2 cursor-pointer py-1.5 px-2 hover:bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-muted)] focus:text-[var(--text-primary)] rounded-md transition-colors">
+                          <span>DTDC</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setCourierName('Blue Dart')} className="flex items-center gap-2 cursor-pointer py-1.5 px-2 hover:bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-muted)] focus:text-[var(--text-primary)] rounded-md transition-colors">
+                          <span>Blue Dart</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setCourierName('Ekart')} className="flex items-center gap-2 cursor-pointer py-1.5 px-2 hover:bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-muted)] focus:text-[var(--text-primary)] rounded-md transition-colors">
+                          <span>Ekart</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setCourierName('India Post')} className="flex items-center gap-2 cursor-pointer py-1.5 px-2 hover:bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-muted)] focus:text-[var(--text-primary)] rounded-md transition-colors">
+                          <span>India Post</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setCourierName('Other')} className="flex items-center gap-2 cursor-pointer py-1.5 px-2 hover:bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-muted)] focus:text-[var(--text-primary)] rounded-md transition-colors">
+                          <span>Other</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
 
                   <div className="space-y-1">
@@ -1577,7 +1751,7 @@ Personalization Details:
                   <button
                     type="submit"
                     disabled={dispatching}
-                    className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-btn font-semibold text-white bg-gradient-primary hover:bg-gradient-primary-hover shadow-purple-sm disabled:opacity-55 cursor-pointer mt-2"
+                    className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-btn font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-sm disabled:opacity-55 cursor-pointer mt-2"
                   >
                     {dispatching ? 'Dispatching...' : 'Mark as Dispatched'}
                   </button>
@@ -1597,7 +1771,7 @@ Personalization Details:
                       href={order.tracking_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-purple-600 dark:text-purple-400 font-bold hover:underline block text-[10px]"
+                      className="text-blue-600 dark:text-blue-400 font-bold hover:underline block text-[10px]"
                     >
                       Track Order Link
                     </a>
@@ -1640,6 +1814,132 @@ Personalization Details:
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Configuration Details Modal */}
+      {selectedConfigItem && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div 
+            className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl w-full max-w-lg p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto space-y-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-base font-bold text-[var(--text-primary)]">
+                  Card Configuration Details
+                </h3>
+                <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mt-0.5">
+                  {selectedConfigItem.product_name || 'Envitra Smart Card'} · {selectedConfigItem.material || 'Standard Finish'}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedConfigItem(null)}
+                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-sm font-bold p-1 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Config Content details */}
+            <div className="space-y-4 text-xs">
+              {/* Order Info & Quantity */}
+              <div className="grid grid-cols-2 gap-4 bg-[var(--bg-muted)] p-3.5 rounded-xl border border-[var(--border)]">
+                <div>
+                  <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider block">Quantity Ordered</span>
+                  <span className="text-sm font-black text-blue-600 dark:text-blue-400 mt-1 block">
+                    {selectedConfigItem.quantity} {selectedConfigItem.quantity > 1 ? 'Cards' : 'Card'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider block">Unit Price (excl. tax)</span>
+                  <span className="text-sm font-bold text-[var(--text-primary)] mt-1 block">
+                    {formatPrice(selectedConfigItem.price_inr)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Personalization metadata */}
+              <div className="space-y-3">
+                <h4 className="font-bold text-[10px] uppercase tracking-wider text-[var(--text-secondary)] border-b border-[var(--border)] pb-1">
+                  Card Customization Details
+                </h4>
+
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div>
+                    <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider block">Cardholder Name</span>
+                    <span className="font-bold text-[var(--text-primary)] mt-0.5 block">
+                      {selectedConfigItem.personalisation?.title || selectedConfigItem.personalisation?.name || 'N/A'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider block">Tagline / Subtext</span>
+                    <span className="font-semibold text-[var(--text-secondary)] mt-0.5 block line-clamp-1">
+                      {selectedConfigItem.personalisation?.tagline || 'N/A'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3.5 pt-2 border-t border-[var(--border)]/40">
+                  <div>
+                    <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider block">Background Theme</span>
+                    <span className="font-semibold text-[var(--text-secondary)] mt-0.5 block">
+                      {selectedConfigItem.personalisation?.backgroundUrl || selectedConfigItem.personalisation?.backgroundImageUrl ? (
+                        <span className="text-blue-600 dark:text-blue-400">Custom Graphic</span>
+                      ) : (
+                        <span>Solid: {selectedConfigItem.personalisation?.colorName || 'Midnight Black'}</span>
+                      )}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider block">Brand Logo Overlay</span>
+                    <span className="font-semibold text-[var(--text-secondary)] mt-0.5 block">
+                      {selectedConfigItem.personalisation?.logoUrl || selectedConfigItem.personalisation?.logoImageUrl ? (
+                        <span className="text-blue-600 dark:text-blue-400">Custom Logo</span>
+                      ) : (
+                        <span className="text-[var(--text-muted)]">Default Watermark</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Claimed slugs list */}
+                <div className="pt-2 border-t border-[var(--border)]/40">
+                  <span className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider block">Claimed Custom Profile Links</span>
+                  <div className="mt-1 space-y-1">
+                    {selectedConfigItem.personalisation?.customSlugs && selectedConfigItem.personalisation.customSlugs.length > 0 ? (
+                      selectedConfigItem.personalisation.customSlugs.map((slug: string, sIdx: number) => (
+                        <p key={sIdx} className="font-mono text-[10px]">
+                          <span className="text-[var(--text-muted)] font-sans">Card {sIdx + 1}:</span>{' '}
+                          <span className="font-bold text-blue-600 dark:text-blue-400">envitra.in/u/{slug}</span>
+                        </p>
+                      ))
+                    ) : selectedConfigItem.personalisation?.customSlug ? (
+                      <p className="font-mono text-[10px]">
+                        <span className="text-[var(--text-muted)] font-sans">Card 1:</span>{' '}
+                        <span className="font-bold text-blue-600 dark:text-blue-400">
+                          envitra.in/u/{selectedConfigItem.personalisation.customSlug}
+                        </span>
+                      </p>
+                    ) : (
+                      <span className="italic text-[var(--text-muted)] text-[10px]">None (system generated during provisioning)</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer close button */}
+            <div className="flex justify-end pt-4 border-t border-[var(--border)]">
+              <button
+                onClick={() => setSelectedConfigItem(null)}
+                className="px-4 py-2 bg-[var(--bg-muted)] hover:bg-zinc-200 border border-[var(--border)] text-xs font-bold rounded-xl text-[var(--text-secondary)] transition-colors cursor-pointer"
+              >
+                Close Details
+              </button>
+            </div>
           </div>
         </div>
       )}

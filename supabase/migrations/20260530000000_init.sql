@@ -138,7 +138,7 @@ CREATE POLICY "Users can create own order items" ON public.order_items FOR INSER
 -- 5. NFC Cards Table
 CREATE TABLE public.nfc_cards (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_item_id UUID UNIQUE REFERENCES public.order_items(id) ON DELETE SET NULL,
+  order_item_id UUID REFERENCES public.order_items(id) ON DELETE SET NULL,
   account_id UUID REFERENCES public.accounts(id) ON DELETE CASCADE,
   slug TEXT UNIQUE NOT NULL,
   card_url TEXT NOT NULL,

@@ -3,46 +3,14 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Search, Loader2, Link2, Eye, ShieldAlert } from 'lucide-react'
-
-const MOCK_CARDS = [
-  {
-    id: 'card-1',
-    slug: 'RH73K9A1',
-    card_url: 'https://envitra.in/u/RH73K9A1',
-    qr_code_url: 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://envitra.in/u/RH73K9A1',
-    status: 'active',
-    tap_count: 24,
-    provisioned_at: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString(),
-    account: { email: 'rahulk@gmail.com', full_name: 'Rahul Kumar' },
-    order: { id: 'ord-1003', order_number: 'ENV-2026-1003' },
-    setup_complete: true,
-  },
-  {
-    id: 'card-2',
-    slug: 'PR82K0W2',
-    card_url: 'https://envitra.in/u/PR82K0W2',
-    qr_code_url: 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://envitra.in/u/PR82K0W2',
-    status: 'provisioned',
-    tap_count: 0,
-    provisioned_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-    account: { email: 'priya.s@uxdesign.in', full_name: 'Priya S.' },
-    order: { id: 'ord-1004', order_number: 'ENV-2026-1004' },
-    setup_complete: false,
-  },
-  {
-    id: 'card-3',
-    slug: 'VK19P0B6',
-    card_url: 'https://envitra.in/u/VK19P0B6',
-    qr_code_url: 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=https://envitra.in/u/VK19P0B6',
-    status: 'active',
-    tap_count: 142,
-    provisioned_at: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
-    account: { email: 'vikram.anand@acmecorp.com', full_name: 'Vikram Anand' },
-    order: { id: 'ord-1002', order_number: 'ENV-2026-1002' },
-    setup_complete: true,
-  },
-]
+import { Search, Loader2, Link2, Eye, ShieldAlert, ChevronDown } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
+import { cn } from '@/lib/utils'
 
 export default function AdminCardsPage() {
   const supabase = createClient()
@@ -58,14 +26,10 @@ export default function AdminCardsPage() {
 
   const fetchCards = async () => {
     try {
-      const { data, error } = await supabase
-        .from('nfc_cards')
-        .select('*, account:accounts(email, full_name), order_item:order_items(order:orders(id, order_number))')
-        .order('provisioned_at', { ascending: false })
-
-      if (!error && data && data.length > 0) {
-        // format joins to match layout
-        const formatted = data.map((c) => ({
+      const res = await fetch('/api/cards')
+      if (res.ok) {
+        const data = await res.json()
+        const formatted = (data.cards || []).map((c: any) => ({
           ...c,
           account: c.account || { email: 'unknown@envitra.in', full_name: 'Unknown User' },
           order: c.order_item?.order || { id: '#', order_number: 'ENV-XXXX' },
@@ -73,10 +37,10 @@ export default function AdminCardsPage() {
         }))
         setCards(formatted)
       } else {
-        setCards(MOCK_CARDS)
+        setCards([])
       }
     } catch {
-      setCards(MOCK_CARDS)
+      setCards([])
     } finally {
       setLoading(false)
     }
@@ -90,12 +54,15 @@ export default function AdminCardsPage() {
     if (!confirm('Are you sure you want to deactivate this card? It will block taps.')) return
 
     try {
-      const { error } = await supabase
-        .from('nfc_cards')
-        .update({ status: 'deactivated' })
-        .eq('id', id)
+      const response = await fetch('/api/cards', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cardId: id, status: 'deactivated' }),
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        throw new Error('Failed to update status on server')
+      }
       fetchCards()
     } catch {
       setCards((prev) =>
@@ -106,12 +73,15 @@ export default function AdminCardsPage() {
 
   const handleActivate = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('nfc_cards')
-        .update({ status: 'active' })
-        .eq('id', id)
+      const response = await fetch('/api/cards', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cardId: id, status: 'active' }),
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        throw new Error('Failed to update status on server')
+      }
       fetchCards()
     } catch {
       setCards((prev) =>
@@ -154,26 +124,40 @@ export default function AdminCardsPage() {
             placeholder="Search by slug, user name, email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-btn border border-[var(--border)] bg-[var(--bg-surface)] text-xs focus:border-purple-600 focus:outline-none"
+            className="w-full pl-9 pr-3 py-2 rounded-btn border border-[var(--border)] bg-[var(--bg-surface)] text-xs focus:border-blue-600 focus:outline-none"
           />
         </div>
 
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 rounded-btn border border-[var(--border)] bg-[var(--bg-surface)] text-xs focus:border-purple-600 focus:outline-none"
-        >
-          <option value="all">All States</option>
-          <option value="provisioned">Provisioned</option>
-          <option value="active">Active</option>
-          <option value="deactivated">Deactivated</option>
-        </select>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="h-9 px-3 rounded-btn border border-[var(--border)] bg-[var(--bg-surface)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none flex items-center gap-1.5 cursor-pointer transition-colors">
+              <span className="capitalize">
+                {statusFilter === 'all' ? 'All States' : statusFilter}
+              </span>
+              <ChevronDown className="h-3.5 w-3.5 text-zinc-400 opacity-60 shrink-0" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40 bg-[var(--bg-surface)] border border-[var(--border)] rounded-card p-1 shadow-lg text-xs text-[var(--text-primary)]">
+            <DropdownMenuItem onClick={() => setStatusFilter('all')} className="flex items-center gap-2 cursor-pointer py-1.5 px-2 hover:bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-muted)] focus:text-[var(--text-primary)] rounded-md transition-colors">
+              <span>All States</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setStatusFilter('provisioned')} className="flex items-center gap-2 cursor-pointer py-1.5 px-2 hover:bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-muted)] focus:text-[var(--text-primary)] rounded-md transition-colors">
+              <span>Provisioned</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setStatusFilter('active')} className="flex items-center gap-2 cursor-pointer py-1.5 px-2 hover:bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-muted)] focus:text-[var(--text-primary)] rounded-md transition-colors">
+              <span>Active</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setStatusFilter('deactivated')} className="flex items-center gap-2 cursor-pointer py-1.5 px-2 hover:bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-muted)] focus:text-[var(--text-primary)] rounded-md transition-colors">
+              <span>Deactivated</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Main Stock Table */}
       {loading ? (
         <div className="flex h-40 items-center justify-center">
-          <Loader2 className="animate-spin text-purple-600" size={24} />
+          <Loader2 className="animate-spin text-blue-600" size={24} />
         </div>
       ) : (
         <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-card shadow-sm overflow-hidden py-4">
@@ -200,7 +184,7 @@ export default function AdminCardsPage() {
                 ) : (
                   filteredCards.map((card) => (
                     <tr key={card.id} className="hover:bg-[var(--bg-muted)]/30 transition-colors">
-                      <td className="px-6 py-4 font-mono font-bold text-purple-600 dark:text-purple-400">
+                      <td className="px-6 py-4 font-mono font-bold text-blue-600 dark:text-blue-400">
                         <Link href={card.card_url} target="_blank" className="hover:underline">
                           {card.slug}
                         </Link>
@@ -213,12 +197,12 @@ export default function AdminCardsPage() {
                         <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
                           card.status === 'active'
                             ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/25'
-                            : card.status === 'provisioned'
-                            ? 'bg-purple-600/10 text-purple-600 border border-purple-600/25'
-                            : 'bg-red-500/10 text-red-500 border border-red-500/25'
-                        }`}>
-                          {card.status}
-                        </span>
+                              : card.status === 'provisioned'
+                              ? 'bg-blue-600/10 text-blue-600 border border-blue-600/25'
+                              : 'bg-red-500/10 text-red-500 border border-red-500/25'
+                          }`}>
+                            {card.status}
+                          </span>
                       </td>
                       <td className="px-6 py-4 font-semibold text-[var(--text-primary)]">
                         {card.setup_complete ? (
@@ -238,14 +222,14 @@ export default function AdminCardsPage() {
                       <td className="px-6 py-4 text-right space-x-2">
                         <button
                           onClick={() => setQrModalUrl(card.qr_code_url)}
-                          className="p-1.5 rounded bg-[var(--bg-muted)] border border-[var(--border)] text-zinc-500 hover:text-purple-600 inline-flex items-center cursor-pointer"
+                          className="p-1.5 rounded bg-[var(--bg-muted)] border border-[var(--border)] text-zinc-500 hover:text-blue-600 inline-flex items-center cursor-pointer"
                           title="View QR Code"
                         >
                           <Eye size={14} />
                         </button>
                         <button
                           onClick={() => copyUrlToClipboard(card.card_url)}
-                          className="p-1.5 rounded bg-[var(--bg-muted)] border border-[var(--border)] text-zinc-500 hover:text-purple-600 inline-flex items-center cursor-pointer"
+                          className="p-1.5 rounded bg-[var(--bg-muted)] border border-[var(--border)] text-zinc-500 hover:text-blue-600 inline-flex items-center cursor-pointer"
                           title="Copy Profile URL"
                         >
                           <Link2 size={14} />
@@ -288,7 +272,7 @@ export default function AdminCardsPage() {
             <p className="text-[10px] text-zinc-500 font-mono select-all truncate">{qrModalUrl}</p>
             <button
               onClick={() => setQrModalUrl(null)}
-              className="w-full py-2 bg-gradient-primary text-white text-xs font-semibold rounded-btn shadow-purple-sm cursor-pointer"
+              className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-btn shadow-sm cursor-pointer"
             >
               Close Preview
             </button>

@@ -2,9 +2,50 @@
 
 import { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
-import { Bell, Check, Inbox } from 'lucide-react'
+import { Bell, Check, Inbox, LayoutDashboard, ShoppingBag, CreditCard, Users, BarChart3 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { ThemeToggle } from './ThemeToggle'
+import { SidebarTrigger } from '@/components/ui/sidebar'
+
+import { Separator } from '@/components/ui/separator'
+
+interface Crumb {
+  label: string;
+  href?: string;
+}
+
+interface BreadcrumbConfig {
+  crumbs: Crumb[];
+  icon: React.ElementType;
+}
+
+// Route → breadcrumb trail config
+const routeConfig: Record<string, BreadcrumbConfig> = {
+  '/':          { crumbs: [{ label: 'Overview' }],                                          icon: LayoutDashboard },
+  '/orders':    { crumbs: [{ label: 'Orders' }],                                             icon: ShoppingBag },
+  '/cards':     { crumbs: [{ label: 'NFC Cards' }],                                          icon: CreditCard },
+  '/users':     { crumbs: [{ label: 'Users' }],                                              icon: Users },
+  '/analytics': { crumbs: [{ label: 'Analytics' }],                                          icon: BarChart3 },
+}
+
+function getBreadcrumbs(pathname: string): BreadcrumbConfig {
+  // Exact match
+  if (routeConfig[pathname]) return routeConfig[pathname]
+  // Prefix match (e.g. /orders/123)
+  for (const [route, config] of Object.entries(routeConfig)) {
+    if (route !== '/' && pathname.startsWith(route)) {
+      const sub = pathname.slice(route.length + 1)
+      return {
+        ...config,
+        crumbs: [
+          { label: config.crumbs[0].label, href: route },
+          { label: sub ? `#${sub}` : config.crumbs[0].label },
+        ],
+      }
+    }
+  }
+  return { crumbs: [{ label: 'Admin Panel' }], icon: LayoutDashboard }
+}
 
 export function AdminHeader() {
   const pathname = usePathname()
@@ -13,15 +54,7 @@ export function AdminHeader() {
   const [notifications, setNotifications] = useState<any[]>([])
   const [bellOpen, setBellOpen] = useState(false)
 
-  // Get Page Title from Pathname
-  const getPageTitle = () => {
-    if (pathname === '/') return 'Dashboard Overview'
-    if (pathname.startsWith('/orders')) return 'Order Management'
-    if (pathname.startsWith('/cards')) return 'NFC Card Stock'
-    if (pathname.startsWith('/users')) return 'User & Subscription Accounts'
-    if (pathname.startsWith('/analytics')) return 'Analytics Reports'
-    return 'Admin Panel'
-  }
+  const { crumbs, icon: RouteIcon } = getBreadcrumbs(pathname)
 
   const fetchNotifications = async () => {
     const { data } = await supabase
@@ -29,91 +62,81 @@ export function AdminHeader() {
       .select('*')
       .order('created_at', { ascending: false })
       .limit(10)
-
     if (data) setNotifications(data)
   }
 
   useEffect(() => {
     fetchNotifications()
 
-    // Subscribe to admin notifications real-time insertion
     const channel = supabase
       .channel('admin-notifs-changes')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'admin_notifications' },
-        () => {
-          fetchNotifications()
-          // Trigger browser notification
-          if (Notification.permission === 'granted') {
-            new Notification('Envitra Admin Alert', {
-              body: 'A new event occurred on the dashboard.',
-            })
-          }
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'admin_notifications' }, () => {
+        fetchNotifications()
+        if (Notification.permission === 'granted') {
+          new Notification('Envitra Admin Alert', { body: 'A new event occurred on the dashboard.' })
         }
-      )
+      })
       .subscribe()
 
-    // Ask notification permission
     if (typeof window !== 'undefined' && Notification.permission === 'default') {
       Notification.requestPermission()
     }
 
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    return () => { supabase.removeChannel(channel) }
   }, [])
 
   const unreadCount = notifications.filter((n) => !n.is_read).length
 
   const markAllRead = async () => {
-    await supabase
-      .from('admin_notifications')
-      .update({ is_read: true })
-      .eq('is_read', false)
-    
+    await supabase.from('admin_notifications').update({ is_read: true }).eq('is_read', false)
     fetchNotifications()
     setBellOpen(false)
   }
 
   return (
-    <header className="h-16 border-b border-[var(--border)] bg-[var(--bg-surface)] px-6 flex justify-between items-center transition-colors">
-      
-      <h1 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
-        {getPageTitle()}
-      </h1>
+    <header className="h-14 border-b border-[var(--border)] bg-[var(--bg-surface)] flex items-center transition-colors shrink-0">
 
-      <div className="flex items-center gap-4">
-        
+      {/* ── Left: sidebar trigger + separator ── */}
+      <div className="flex items-center gap-2 px-3">
+        <SidebarTrigger className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-muted)] rounded p-1.5 transition-colors" />
+        <Separator orientation="vertical" className="h-5 bg-[var(--border)]" />
+      </div>
+
+      {/* ── Center: Dynamic Page Title ── */}
+      <div className="flex-1 flex items-center justify-center">
+        <span className="text-xs font-semibold text-[var(--text-primary)] select-none">
+          {crumbs[crumbs.length - 1]?.label || 'Admin Panel'}
+        </span>
+      </div>
+
+      {/* ── Right: Theme toggle + Notification bell ── */}
+      <div className="flex items-center gap-3 px-4">
         <ThemeToggle />
 
-        {/* Notification Bell Dropdown */}
+        {/* Notification Bell */}
         <div className="relative">
           <button
             onClick={() => setBellOpen(!bellOpen)}
-            className="p-2 rounded-btn border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-purple-600 transition-all cursor-pointer relative"
+            className="p-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:text-purple-600 hover:border-purple-600/30 transition-all cursor-pointer relative"
           >
-            <Bell size={16} />
+            <Bell size={15} />
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 flex h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+              <span className="absolute top-1 right-1 flex h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
             )}
           </button>
 
           {bellOpen && (
             <>
-              <div 
-                className="fixed inset-0 z-10" 
-                onClick={() => setBellOpen(false)} 
-              />
-              <div className="absolute right-0 mt-2 w-72 rounded-card border border-[var(--border)] bg-[var(--bg-surface)] p-2 shadow-lg z-20 space-y-2">
+              <div className="fixed inset-0 z-10" onClick={() => setBellOpen(false)} />
+              <div className="absolute right-0 mt-2 w-72 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-2 shadow-lg z-20 space-y-2">
                 <div className="flex justify-between items-center px-2 py-1 text-xs">
                   <span className="font-bold text-[var(--text-primary)]">Notifications</span>
                   {unreadCount > 0 && (
-                    <button 
+                    <button
                       onClick={markAllRead}
-                      className="text-purple-600 font-semibold hover:underline flex items-center gap-0.5"
+                      className="text-purple-600 font-semibold hover:underline flex items-center gap-0.5 text-[10px]"
                     >
-                      <Check size={12} /> Mark all read
+                      <Check size={11} /> Mark all read
                     </button>
                   )}
                 </div>
@@ -128,11 +151,11 @@ export function AdminHeader() {
                     </div>
                   ) : (
                     notifications.map((n) => (
-                      <div 
+                      <div
                         key={n.id}
-                        className={`p-2 rounded-btn text-[11px] space-y-1 border ${
-                          n.is_read 
-                            ? 'border-transparent text-[var(--text-secondary)]' 
+                        className={`p-2 rounded-lg text-[11px] space-y-1 border ${
+                          n.is_read
+                            ? 'border-transparent text-[var(--text-secondary)]'
                             : 'border-purple-600/10 bg-purple-600/5 text-[var(--text-primary)] font-medium'
                         }`}
                       >
@@ -148,9 +171,7 @@ export function AdminHeader() {
             </>
           )}
         </div>
-
       </div>
-
     </header>
   )
 }

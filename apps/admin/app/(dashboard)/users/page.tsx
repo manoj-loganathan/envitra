@@ -2,40 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Search, Loader2, Edit3, ShieldAlert } from 'lucide-react'
-
-const MOCK_USERS = [
-  {
-    id: 'user-1',
-    email: 'rahulk@gmail.com',
-    full_name: 'Rahul Kumar',
-    plan: 'free',
-    account_type: 'Individual',
-    cards_count: 1,
-    orders_count: 1,
-    created_at: new Date(Date.now() - 14 * 24 * 3600 * 1000).toISOString(), // 2 weeks ago
-  },
-  {
-    id: 'user-2',
-    email: 'priya.s@uxdesign.in',
-    full_name: 'Priya S.',
-    plan: 'pro',
-    account_type: 'Individual',
-    cards_count: 1,
-    orders_count: 1,
-    created_at: new Date(Date.now() - 3 * 24 * 3600 * 1000).toISOString(), // 3 days ago
-  },
-  {
-    id: 'user-3',
-    email: 'vikram.anand@acmecorp.com',
-    full_name: 'Vikram Anand',
-    plan: 'business',
-    account_type: 'Company',
-    cards_count: 12,
-    orders_count: 1,
-    created_at: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(), // 1 month ago
-  },
-]
+import { Search, Loader2, Edit3, ShieldAlert, ChevronDown } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu'
+import { cn } from '@/lib/utils'
 
 export default function AdminUsersPage() {
   const supabase = createClient()
@@ -52,37 +26,15 @@ export default function AdminUsersPage() {
 
   const fetchUsers = async () => {
     try {
-      const { data, error } = await supabase
-        .from('accounts')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (!error && data && data.length > 0) {
-        // Hydrate counts from local counts if joins are restricted
-        const hydrated = await Promise.all(data.map(async (u) => {
-          const { count: cardCount } = await supabase
-            .from('nfc_cards')
-            .select('*', { count: 'exact', head: true })
-            .eq('account_id', u.id)
-
-          const { count: ordCount } = await supabase
-            .from('orders')
-            .select('*', { count: 'exact', head: true })
-            .eq('account_id', u.id)
-
-          return {
-            ...u,
-            account_type: cardCount && cardCount > 5 ? 'Company' : 'Individual',
-            cards_count: cardCount || 0,
-            orders_count: ordCount || 0,
-          }
-        }))
-        setUsers(hydrated)
+      const res = await fetch('/api/users')
+      if (res.ok) {
+        const data = await res.json()
+        setUsers(data.users || [])
       } else {
-        setUsers(MOCK_USERS)
+        setUsers([])
       }
     } catch {
-      setUsers(MOCK_USERS)
+      setUsers([])
     } finally {
       setLoading(false)
     }
@@ -103,19 +55,26 @@ export default function AdminUsersPage() {
           ? new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString()
           : null
 
-      const { error } = await supabase
-        .from('accounts')
-        .update({ 
+      const response = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: editingUser.id,
           plan: newPlan,
-          plan_expires_at: expiresAt 
-        })
-        .eq('id', editingUser.id)
+          planExpiresAt: expiresAt,
+        }),
+      })
 
-      if (error) throw error
+      if (!response.ok) {
+        throw new Error('Failed to update plan on the server')
+      }
+
       fetchUsers()
       setEditingUser(null)
       alert(`User plan successfully updated to ${newPlan.toUpperCase()}!`)
-    } catch {
+    } catch (err: any) {
+      console.error(err)
+      // Fallback/offline behavior
       setUsers((prev) =>
         prev.map((u) => (u.id === editingUser.id ? { ...u, plan: newPlan } : u))
       )
@@ -152,26 +111,40 @@ export default function AdminUsersPage() {
             placeholder="Search by owner name, email address..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-btn border border-[var(--border)] bg-[var(--bg-surface)] text-xs focus:border-purple-600 focus:outline-none"
+            className="w-full pl-9 pr-3 py-2 rounded-btn border border-[var(--border)] bg-[var(--bg-surface)] text-xs focus:border-blue-600 focus:outline-none"
           />
         </div>
 
-        <select
-          value={planFilter}
-          onChange={(e) => setPlanFilter(e.target.value)}
-          className="px-3 py-2 rounded-btn border border-[var(--border)] bg-[var(--bg-surface)] text-xs focus:border-purple-600 focus:outline-none"
-        >
-          <option value="all">All Plans</option>
-          <option value="free">Free Tier</option>
-          <option value="pro">Pro Tier</option>
-          <option value="business">Business Tier</option>
-        </select>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="h-9 px-3 rounded-btn border border-[var(--border)] bg-[var(--bg-surface)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none flex items-center gap-1.5 cursor-pointer transition-colors">
+              <span className="capitalize">
+                {planFilter === 'all' ? 'All Plans' : `${planFilter} Tier`}
+              </span>
+              <ChevronDown className="h-3.5 w-3.5 text-zinc-400 opacity-60 shrink-0" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40 bg-[var(--bg-surface)] border border-[var(--border)] rounded-card p-1 shadow-lg text-xs text-[var(--text-primary)]">
+            <DropdownMenuItem onClick={() => setPlanFilter('all')} className="flex items-center gap-2 cursor-pointer py-1.5 px-2 hover:bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-muted)] focus:text-[var(--text-primary)] rounded-md transition-colors">
+              <span>All Plans</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setPlanFilter('free')} className="flex items-center gap-2 cursor-pointer py-1.5 px-2 hover:bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-muted)] focus:text-[var(--text-primary)] rounded-md transition-colors">
+              <span>Free Tier</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setPlanFilter('pro')} className="flex items-center gap-2 cursor-pointer py-1.5 px-2 hover:bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-muted)] focus:text-[var(--text-primary)] rounded-md transition-colors">
+              <span>Pro Tier</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setPlanFilter('business')} className="flex items-center gap-2 cursor-pointer py-1.5 px-2 hover:bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-muted)] focus:text-[var(--text-primary)] rounded-md transition-colors">
+              <span>Business Tier</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Main Users Table */}
       {loading ? (
         <div className="flex h-40 items-center justify-center">
-          <Loader2 className="animate-spin text-purple-600" size={24} />
+          <Loader2 className="animate-spin text-blue-600" size={24} />
         </div>
       ) : (
         <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-card shadow-sm overflow-hidden py-4">
@@ -205,9 +178,9 @@ export default function AdminUsersPage() {
                       <td className="px-6 py-4">
                         <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${
                           u.plan === 'pro'
-                            ? 'bg-purple-600/10 text-purple-600 border border-purple-600/25'
+                            ? 'bg-blue-600/10 text-blue-600 border border-blue-600/25'
                             : u.plan === 'business'
-                            ? 'bg-blue-500/10 text-blue-500 border border-blue-500/25'
+                            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/25'
                             : 'bg-zinc-500/10 text-zinc-500'
                         }`}>
                           {u.plan}
@@ -231,7 +204,7 @@ export default function AdminUsersPage() {
                             setEditingUser(u)
                             setNewPlan(u.plan)
                           }}
-                          className="px-2.5 py-1.5 rounded border border-[var(--border-purple)] text-purple-600 dark:text-purple-400 font-semibold hover:bg-purple-600/10 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                          className="px-2.5 py-1.5 rounded border border-blue-600/20 text-blue-600 dark:text-blue-400 font-semibold hover:bg-blue-600/10 transition-colors inline-flex items-center gap-1 cursor-pointer"
                         >
                           <Edit3 size={12} /> Plan
                         </button>
@@ -250,7 +223,7 @@ export default function AdminUsersPage() {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[var(--bg-surface)] border border-[var(--border)] p-6 rounded-card max-w-sm w-full space-y-4 relative">
             <h3 className="font-bold text-sm text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-1">
-              <ShieldAlert size={16} className="text-purple-600" /> Change Subscription Tier
+              <ShieldAlert size={16} className="text-blue-600" /> Change Subscription Tier
             </h3>
             
             <p className="text-xs text-[var(--text-secondary)]">
@@ -259,15 +232,27 @@ export default function AdminUsersPage() {
 
             <div className="space-y-1.5 text-xs">
               <label className="font-semibold text-zinc-400 uppercase">Select Plan Tier</label>
-              <select
-                value={newPlan}
-                onChange={(e: any) => setNewPlan(e.target.value)}
-                className="w-full px-3 py-2 rounded border border-[var(--border)] bg-[var(--bg-surface)] text-xs focus:border-purple-600 focus:outline-none"
-              >
-                <option value="free">Free Plan (₹0)</option>
-                <option value="pro">Pro Plan (₹199/mo)</option>
-                <option value="business">Business Enterprise Plan</option>
-              </select>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="w-full h-9 px-3 rounded border border-[var(--border)] bg-[var(--bg-surface)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] focus:outline-none flex items-center justify-between cursor-pointer transition-colors">
+                    <span className="capitalize">
+                      {newPlan === 'free' ? 'Free Plan (₹0)' : newPlan === 'pro' ? 'Pro Plan (₹199/mo)' : 'Business Enterprise Plan'}
+                    </span>
+                    <ChevronDown className="h-3.5 w-3.5 text-zinc-400 opacity-60 shrink-0" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-card p-1 shadow-lg text-xs text-[var(--text-primary)]">
+                  <DropdownMenuItem onClick={() => setNewPlan('free')} className="flex items-center gap-2 cursor-pointer py-1.5 px-2 hover:bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-muted)] focus:text-[var(--text-primary)] rounded-md transition-colors">
+                    <span>Free Plan (₹0)</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setNewPlan('pro')} className="flex items-center gap-2 cursor-pointer py-1.5 px-2 hover:bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-muted)] focus:text-[var(--text-primary)] rounded-md transition-colors">
+                    <span>Pro Plan (₹199/mo)</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setNewPlan('business')} className="flex items-center gap-2 cursor-pointer py-1.5 px-2 hover:bg-[var(--bg-muted)]/50 focus:bg-[var(--bg-muted)] focus:text-[var(--text-primary)] rounded-md transition-colors">
+                    <span>Business Enterprise Plan</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             <div className="flex gap-3 pt-2">
@@ -279,7 +264,7 @@ export default function AdminUsersPage() {
               </button>
               <button
                 onClick={handleUpdatePlan}
-                className="flex-1 py-2 bg-gradient-primary text-white text-xs font-semibold rounded-btn shadow-purple-sm cursor-pointer"
+                className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-btn shadow-sm cursor-pointer"
               >
                 Save Plan Changes
               </button>
