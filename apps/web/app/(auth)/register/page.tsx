@@ -282,7 +282,7 @@ function RegisterForm() {
               <Checkbox
                 id="terms"
                 checked={agreeToTerms}
-                onCheckedChange={(checked) => setAgreeToTerms(!!checked)}
+                onCheckedChange={(checked: boolean | 'indeterminate') => setAgreeToTerms(!!checked)}
               />
               <label 
                 htmlFor="terms" 

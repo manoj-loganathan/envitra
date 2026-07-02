@@ -27,6 +27,7 @@ CREATE TABLE public.accounts (
   full_name TEXT,
   plan user_plan NOT NULL DEFAULT 'free',
   plan_expires_at TIMESTAMP WITH TIME ZONE,
+  avatar_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );

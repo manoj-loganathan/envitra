@@ -2,26 +2,101 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useDashboard } from '../context'
 import { createClient } from '@/lib/supabase/client'
 import { isDarkColor } from '@/lib/utils'
-import { 
-  CreditCard, User, Activity, Clock, Cpu, UserCheck, Sparkles, Save, Share2, Copy, Check, Download, ExternalLink, Loader2 
+import {
+  CreditCard, User, Users, Activity, Clock, Cpu, UserCheck, Sparkles, Save, Share2, Copy, Check, Download, ExternalLink, Loader2,
+  Contact, Link2, FileText, ShoppingBag, Rss, ChevronLeft, ChevronRight, CheckCircle2, Minus
 } from 'lucide-react'
+
+const CHECKLIST = [
+  {
+    id: 'card',
+    step: 1,
+    label: 'Activate your NFC card',
+    desc: 'Enable NFC sharing so your card goes live when tapped.',
+    tab: '/dashboard/card',
+    icon: Cpu,
+    color: '#3f5ce6',
+  },
+  {
+    id: 'profile',
+    step: 2,
+    label: 'Create your first digital profile',
+    desc: 'Build the public page people see when they scan your card.',
+    tab: '/dashboard/profiles',
+    icon: User,
+    color: '#8b5cf6',
+  },
+  {
+    id: 'vcard',
+    step: 3,
+    label: 'Fill in your vCard contact details',
+    desc: 'Add phone, email and address — auto-shared on every tap.',
+    tab: '/dashboard/vcard',
+    icon: Contact,
+    color: '#06b6d4',
+  },
+  {
+    id: 'links',
+    step: 4,
+    label: 'Add your first social / website link',
+    desc: 'Connect Instagram, LinkedIn, portfolio, UPI and more.',
+    tab: '/dashboard/links',
+    icon: Link2,
+    color: '#10b981',
+  },
+  {
+    id: 'leads',
+    step: 5,
+    label: 'Create a lead capture form',
+    desc: 'Let visitors leave their details so you can follow up.',
+    tab: '/dashboard/leads',
+    icon: FileText,
+    color: '#f59e0b',
+  },
+  {
+    id: 'products',
+    step: 6,
+    label: 'Add a product to your profile',
+    desc: 'Showcase what you sell directly on your public page.',
+    tab: '/dashboard/products',
+    icon: ShoppingBag,
+    color: '#ec4899',
+  },
+  {
+    id: 'feeds',
+    step: 7,
+    label: 'Publish your first feed post',
+    desc: 'Share updates, announcements or portfolio pieces.',
+    tab: '/dashboard/feeds',
+    icon: Rss,
+    color: '#14b8a6',
+  },
+]
 
 export function CardTab() {
   const supabase = createClient()
-  const { 
-    activeCard, 
-    setActiveCard, 
-    setCards, 
-    activeProfile, 
-    cardProfiles, 
-    lastActivity, 
-    setLastActivity, 
-    profile, 
-    setMessage, 
-    setMessageType 
+  const router = useRouter()
+  const {
+    activeCard,
+    setActiveCard,
+    setCards,
+    activeProfile,
+    cardProfiles,
+    lastActivity,
+    setLastActivity,
+    profile,
+    setMessage,
+    setMessageType,
+    profileLinks,
+    leadForms,
+    profileProducts,
+    profileFeeds,
+    vcardDataMap,
+    leads
   } = useDashboard()
 
   const [nicknameInput, setNicknameInput] = useState('')
@@ -30,6 +105,7 @@ export function CardTab() {
     transition: 'transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)',
   })
   const [copiedLink, setCopiedLink] = useState(false)
+  const [stageHover, setStageHover] = useState(false)
 
   // Initialize nickname input
   useEffect(() => {
@@ -39,6 +115,35 @@ export function CardTab() {
   }, [activeCard?.id])
 
   const isAllCards = activeCard?.id === 'all'
+
+  const [currentStepIdx, setCurrentStepIdx] = useState(0)
+
+  const hasVcard = activeProfile?.id && vcardDataMap?.[activeProfile.id]
+    ? !!(vcardDataMap[activeProfile.id].first_name || vcardDataMap[activeProfile.id].phone || vcardDataMap[activeProfile.id].email)
+    : false
+  const workspaceCheckState: Record<string, boolean> = {
+    card: activeCard?.status !== 'provisioned',
+    profile: (cardProfiles?.length ?? 0) > 0,
+    vcard: hasVcard,
+    links: (profileLinks?.length ?? 0) > 0,
+    leads: (leadForms?.length ?? 0) > 0,
+    products: (profileProducts?.length ?? 0) > 0,
+    feeds: (profileFeeds?.length ?? 0) > 0,
+  }
+
+  useEffect(() => {
+    const nextIdx = CHECKLIST.findIndex((item) => !(workspaceCheckState[item.id] ?? false))
+    setCurrentStepIdx(nextIdx !== -1 ? nextIdx : 0)
+  }, [
+    activeCard?.id,
+    workspaceCheckState.card,
+    workspaceCheckState.profile,
+    workspaceCheckState.vcard,
+    workspaceCheckState.links,
+    workspaceCheckState.leads,
+    workspaceCheckState.products,
+    workspaceCheckState.feeds
+  ])
 
   // Tilt animation triggers
   const handleCardMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -61,6 +166,19 @@ export function CardTab() {
       transform: 'perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)',
       transition: 'transform 0.5s cubic-bezier(0.25, 1, 0.5, 1)',
     })
+  }
+
+  const handleStageMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    e.currentTarget.style.setProperty('--mouse-x', `${x}px`)
+    e.currentTarget.style.setProperty('--mouse-y', `${y}px`)
+    setStageHover(true)
+  }
+
+  const handleStageMouseLeave = () => {
+    setStageHover(false)
   }
 
   // Helper relative time parser
@@ -126,7 +244,7 @@ export function CardTab() {
       const updatedCard = { ...activeCard, card_nickname: trimmed || null }
       setActiveCard(updatedCard)
       setCards((prev: any[]) => prev.map((c: any) => c.id === activeCard.id ? updatedCard : c))
-      
+
       setMessageType('success')
       setMessage('Card nickname updated successfully!')
     } catch (err: any) {
@@ -244,10 +362,74 @@ export function CardTab() {
         }
       `}} />
 
+      {/* Top Header Controls (Active status, Date, and Activate/Deactivate Toggle Button) */}
+      <div className="flex items-center justify-between gap-4 px-1 py-1">
+        <div className="flex flex-col items-start gap-0.5">
+          {activeCard?.status === 'active' ? (
+            <div className="flex items-center gap-2 text-xs font-bold text-emerald-500">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Active</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-xs font-bold text-zinc-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-zinc-400" />
+              <span>Paused / Offline</span>
+            </div>
+          )}
+          {activeCard?.provisioned_at && (
+            <span className="text-[9px] font-semibold text-muted-foreground/75 pl-3.5">
+              Linked on {new Date(activeCard.provisioned_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {activeCard?.card_url && (
+            <Link
+              href={activeCard.card_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center px-4 py-1.5 rounded-xl border border-border bg-transparent hover:bg-muted/30 text-xs font-bold text-foreground transition-all active:scale-95 cursor-pointer"
+            >
+              View Profile
+            </Link>
+          )}
+          <button
+            onClick={handleToggleCardStatus}
+            className={`px-4 py-1.5 rounded-xl border text-xs font-bold transition-all active:scale-95 cursor-pointer hover:bg-opacity-10 transition-colors ${activeCard?.status === 'active'
+                ? 'border-red-500/40 text-red-500 hover:bg-red-500/10'
+                : 'border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10'
+              }`}
+          >
+            {activeCard?.status === 'active' ? 'Deactivate Card' : 'Activate Card'}
+          </button>
+        </div>
+      </div>
+
       {/* 1. Top Element: Card Showcase Stage */}
-      <div className="relative rounded-2xl border border-border/40 bg-muted/10 overflow-hidden flex flex-col items-center justify-center p-8 md:p-12 shadow-inner">
+      <div
+        onMouseMove={handleStageMouseMove}
+        onMouseLeave={handleStageMouseLeave}
+        className="relative rounded-2xl border border-border/40 bg-muted/10 overflow-hidden flex flex-col items-center justify-center p-8 md:p-12 shadow-inner"
+      >
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full bg-[radial-gradient(circle,rgba(63,92,230,0.08)_0%,transparent_70%)] pointer-events-none filter blur-xl animate-pulse" />
         <div className="absolute inset-0 bg-[radial-gradient(rgba(15,23,42,0.1)_1.5px,transparent_1.5px)] dark:bg-[radial-gradient(rgba(255,255,255,0.06)_1.5px,transparent_1.5px)] [background-size:14px_14px] pointer-events-none" />
+
+        {/* Dynamic 10x10 dots (140px diameter) spotlight glow following mouse cursor (Only colors the dots) */}
+        {stageHover && (
+          <div
+            className="absolute inset-0 pointer-events-none transition-opacity duration-300"
+            style={{
+              background: activeCard?.status === 'active'
+                ? 'radial-gradient(140px circle at var(--mouse-x) var(--mouse-y), rgba(16, 185, 129, 0.95), transparent 100%)'
+                : 'radial-gradient(140px circle at var(--mouse-x) var(--mouse-y), rgba(239, 68, 68, 0.95), transparent 100%)',
+              WebkitMaskImage: 'radial-gradient(circle, white 1.5px, transparent 1.5px)',
+              WebkitMaskSize: '14px 14px',
+              maskImage: 'radial-gradient(circle, white 1.5px, transparent 1.5px)',
+              maskSize: '14px 14px',
+            }}
+          />
+        )}
 
         <div
           onMouseMove={handleCardMouseMove}
@@ -345,267 +527,270 @@ export function CardTab() {
         </div>
       </div>
 
-      <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm space-y-4 text-left relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#3f5ce6]/5 to-transparent pointer-events-none" />
-        <div className="relative z-10 flex items-center gap-2 border-b border-border/50 pb-2.5">
-          <Activity className="size-4 text-[#3f5ce6]" />
-          <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Quick Insights</h4>
-        </div>
+      {/* 2. Onboarding Checklist Carousel — hidden when all steps complete */}
+      {!CHECKLIST.every((item) => workspaceCheckState[item.id] ?? false) && (() => {
+        const currentStep = CHECKLIST[currentStepIdx]
+        const isStepDone = workspaceCheckState[currentStep.id] ?? false
+        const StepIcon = currentStep.icon
 
-        <div className="relative z-10 grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-background/50 border border-border/40 hover:border-[#3f5ce6]/30 rounded-xl p-4.5 space-y-3 transition-all hover:shadow-[0_4px_12px_rgba(63,92,230,0.04)] flex items-start gap-3.5 group">
-            <div className="p-2.5 bg-[#3f5ce6]/10 text-[#3f5ce6] rounded-xl shrink-0 group-hover:bg-[#3f5ce6]/25 transition-all">
-              <Activity className="size-4.5 animate-pulse" />
-            </div>
-            <div className="min-w-0 flex-1 space-y-1">
-              <span className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider block">Total Scans</span>
-              <p className="text-lg font-black text-foreground tracking-tight leading-none truncate">{tapCount} taps</p>
-              <p className="text-[9px] text-muted-foreground leading-none">Lifetime NFC taps</p>
-            </div>
-          </div>
+        const nextStep = () => {
+          setCurrentStepIdx((prev) => (prev + 1) % CHECKLIST.length)
+        }
+        const prevStep = () => {
+          setCurrentStepIdx((prev) => (prev - 1 + CHECKLIST.length) % CHECKLIST.length)
+        }
 
-          <div className="bg-background/50 border border-border/40 hover:border-[#3f5ce6]/30 rounded-xl p-4.5 space-y-3 transition-all hover:shadow-[0_4px_12px_rgba(63,92,230,0.04)] flex items-start gap-3.5 group">
-            <div className="p-2.5 bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 rounded-xl shrink-0 group-hover:bg-emerald-500/25 transition-all">
-              <UserCheck className="size-4.5" />
-            </div>
-            <div className="min-w-0 flex-1 space-y-1">
-              <span className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider block">Active Profile</span>
-              <p className="text-base font-black text-foreground tracking-tight leading-tight truncate">{activeProfile?.profile_name || 'None'}</p>
-              <p className="text-[9px] text-muted-foreground leading-none">{cardProfiles.length} profiles linked</p>
-            </div>
-          </div>
-
-          <div className="bg-background/50 border border-border/40 hover:border-[#3f5ce6]/30 rounded-xl p-4.5 space-y-3 transition-all hover:shadow-[0_4px_12px_rgba(63,92,230,0.04)] flex items-start gap-3.5 group">
-            <div className="p-2.5 bg-violet-500/10 text-violet-500 dark:text-violet-400 rounded-xl shrink-0 group-hover:bg-violet-500/25 transition-all">
-              <Clock className="size-4.5" />
-            </div>
-            <div className="min-w-0 flex-1 space-y-1">
-              <span className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider block">Last Activity</span>
-              <p className="text-base font-black text-foreground tracking-tight leading-tight truncate">{relativeActivity}</p>
-              <p className="text-[9px] text-muted-foreground leading-none">Real-time scan</p>
-            </div>
-          </div>
-
-          <div className="bg-background/50 border border-border/40 hover:border-[#3f5ce6]/30 rounded-xl p-4.5 transition-all hover:shadow-[0_4px_12px_rgba(63,92,230,0.04)] flex items-center gap-3.5 group">
-            <div className="relative flex items-center justify-center shrink-0">
-              <svg className="w-11 h-11 transform -rotate-90" viewBox="0 0 36 36">
-                <path
-                  className="text-muted/10"
-                  strokeWidth="3.5"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845
-                    a 15.9155 15.9155 0 0 1 0 31.831
-                    a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                <path
-                  className="text-amber-500 transition-all duration-700 ease-out"
-                  strokeDasharray={`${engagementScore}, 100`}
-                  strokeWidth="3.5"
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845
-                    a 15.9155 15.9155 0 0 1 0 31.831
-                    a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-              </svg>
-              <span className="absolute text-[10px] font-black text-foreground">{engagementScore}%</span>
-            </div>
-            <div className="min-w-0 flex-1 space-y-1">
-              <span className="text-[9px] uppercase font-bold text-muted-foreground tracking-wider block">Engagement</span>
-              <div className="flex items-center gap-1.5">
-                <span className={`text-xs font-black capitalize ${engagementLevel === 'Excellent' ? 'text-amber-500' :
-                  engagementLevel === 'Active' ? 'text-emerald-500' :
-                    engagementLevel === 'Standard' ? 'text-[#3f5ce6]' :
-                      'text-muted-foreground'
-                  }`}>
-                  {engagementLevel}
-                </span>
-              </div>
-              <p className="text-[9px] text-muted-foreground leading-none">Based on taps</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
-        <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm space-y-4 text-left flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#3f5ce6]/5 to-transparent pointer-events-none" />
-
-          <div className="relative z-10 space-y-4">
-            <div className="flex items-center justify-between border-b border-border/50 pb-2.5">
-              <div className="flex items-center gap-2">
-                <Cpu className="size-4 text-[#3f5ce6]" />
-                <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Card Status & Access</h4>
-              </div>
-
-              <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full flex items-center gap-1 border ${activeCard?.status === 'active'
-                ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${activeCard?.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                {activeCard?.status === 'active' ? 'Active / Online' : 'Paused / Offline'}
-              </span>
-            </div>
-
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {activeCard?.status === 'active' ? (
-                <>
-                  Your smart card is currently <strong>Active & Online</strong>. Tapping the physical card with any NFC-enabled smartphone will instantly share your digital business profile link.
-                </>
-              ) : (
-                <>
-                  NFC sharing is currently <strong>Paused & Offline</strong>. Scanning or tapping the physical card will show a temporary inactive message and prevent profile details from being shared.
-                </>
-              )}
-            </p>
-
-            <div className="flex flex-wrap items-center gap-2 text-[10px] font-semibold text-muted-foreground pt-1">
-              {activeCard?.provisioned_at && (
-                <div className="px-2.5 py-1.5 rounded-lg bg-muted/30 border border-border/50 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
-                  <span className="opacity-75">Linked on:</span>
-                  <span className="text-foreground">{new Date(activeCard.provisioned_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+        return (
+          <div className="w-full flex flex-col gap-6 text-left my-2 px-1 pb-2">
+            {/* Carousel Content Card Container */}
+            <div className="relative overflow-hidden flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl border border-border/50 bg-card shadow-sm text-left">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#3f5ce6]/5 to-transparent pointer-events-none" />
+              
+              <div className="relative z-10 flex items-start gap-4 flex-grow min-w-0">
+                <div
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-inner border border-white/5"
+                  style={{ backgroundColor: `${currentStep.color}15` }}
+                >
+                  <StepIcon className="w-6 h-6" style={{ color: currentStep.color }} />
                 </div>
-              )}
-              {activeCard?.activated_at && (
-                <div className="px-2.5 py-1.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="opacity-75">Active since:</span>
-                  <span>{new Date(activeCard.activated_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-base font-extrabold text-foreground tracking-tight">{currentStep.label}</h4>
+                    {isStepDone ? (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-500 border border-emerald-500/25">
+                        Completed
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-[#3f5ce6]/10 text-[#3f5ce6] border border-[#3f5ce6]/25">
+                        Incomplete
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed max-w-2xl">
+                    {currentStep.desc}
+                  </p>
                 </div>
-              )}
-            </div>
-          </div>
-
-          <div className="relative z-10 pt-4 border-t border-border/30 mt-auto">
-            <button
-              onClick={handleToggleCardStatus}
-              className={`w-full px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer active:scale-98 transition-all flex items-center justify-center gap-1.5 border shrink-0 ${activeCard?.status === 'active'
-                ? 'bg-red-500/5 border-red-500/20 text-red-500 dark:text-red-400 hover:bg-red-500/10'
-                : 'bg-emerald-500/5 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10'
-                }`}
-            >
-              <span className={`w-1.5 h-1.5 rounded-full ${activeCard?.status === 'active' ? 'bg-red-500' : 'bg-emerald-500 animate-pulse'}`} />
-              {activeCard?.status === 'active' ? 'Pause NFC Sharing' : 'Enable NFC Sharing'}
-            </button>
-          </div>
-        </div>
-
-        <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm space-y-4 flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#3f5ce6]/5 to-transparent pointer-events-none" />
-
-          <div className="relative z-10 space-y-4">
-            <div className="flex items-center gap-2 border-b border-border/50 pb-2.5">
-              <Sparkles className="size-4 text-[#3f5ce6]" />
-              <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Card Nickname</h4>
-            </div>
-
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Assign an easily recognizable nickname to this physical card to distinguish it from other cards in your workspace.
-            </p>
-
-            <div className="space-y-1.5">
-              <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Nickname Label</label>
-              <input
-                type="text"
-                value={nicknameInput}
-                onChange={(e) => setNicknameInput(e.target.value)}
-                placeholder="e.g., Personal Matte Card"
-                className="w-full bg-muted/30 hover:bg-muted/50 focus:bg-background border border-border focus:border-[#3f5ce6] focus:outline-none rounded-xl px-3 py-2.5 text-xs font-medium text-foreground transition-all duration-200"
-              />
-            </div>
-          </div>
-
-          <div className="relative z-10 pt-4 border-t border-border/30 mt-auto">
-            <button
-              onClick={handleSaveNickname}
-              className="w-full px-4 py-2 rounded-xl bg-[#3f5ce6] hover:bg-[#3050d8] text-white text-xs font-semibold cursor-pointer active:scale-98 transition-all shrink-0 flex items-center justify-center gap-1.5"
-            >
-              <Save size={13} /> Save Nickname
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm space-y-4 text-left relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#3f5ce6]/5 to-transparent pointer-events-none" />
-
-        <div className="relative z-10 flex items-center gap-2 border-b border-border/50 pb-2.5">
-          <Share2 className="size-4 text-[#3f5ce6]" />
-          <h4 className="text-xs font-bold uppercase tracking-wider text-foreground">Sharing & QR Code</h4>
-        </div>
-
-        <p className="relative z-10 text-xs text-muted-foreground leading-relaxed">
-          This profile URL is programmed on your physical card. When tapped, it displays your active profile. You can copy the link or share/download the QR code.
-        </p>
-
-        <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-          <div className="space-y-3">
-            <label className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Card Link</label>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 min-w-0 p-3 rounded-xl bg-muted/40 border border-border text-xs font-mono font-bold select-all truncate text-foreground">
-                {activeCard?.card_url}
               </div>
+
               <button
-                onClick={() => handleCopyLink(activeCard?.card_url)}
-                className="p-3 rounded-xl bg-[#3f5ce6] hover:bg-[#3050d8] text-white text-xs font-semibold cursor-pointer active:scale-95 transition-all shadow-md shrink-0 flex items-center justify-center border border-border min-w-[38px]"
-                title="Copy Link"
+                onClick={() => router.push(currentStep.tab)}
+                className={`relative z-10 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer active:scale-95 flex items-center gap-1.5 shadow-sm ${isStepDone
+                    ? 'bg-emerald-500/15 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                    : 'bg-[#3f5ce6] hover:bg-[#3050d8] text-white'
+                  }`}
               >
-                {copiedLink ? <Check size={14} /> : <Copy size={14} />}
+                {isStepDone ? (
+                  <>
+                    <CheckCircle2 size={14} />
+                    Configure Again
+                  </>
+                ) : (
+                  'Configure Setup'
+                )}
               </button>
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              Share this direct link via email, messaging apps, or embed it on your website.
-            </p>
-          </div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 bg-muted/20 border border-border/50 rounded-xl p-4">
-            {activeCard?.qr_code_url ? (
-              <>
-                <div className="relative p-2 bg-white rounded-xl border border-border flex items-center justify-center shadow-md shrink-0 max-w-[110px] aspect-square">
-                  <img
-                    src={activeCard.qr_code_url}
-                    alt="QR Code"
-                    className="w-full h-full object-contain"
-                  />
-                </div>
+            {/* Navigation & Rounded Indicators Row */}
+            <div className="flex items-center justify-center gap-4 py-1">
+              {/* Previous Arrow */}
+              <button
+                onClick={prevStep}
+                className="w-8 h-8 rounded-xl border border-border bg-[#0d0d0f] hover:bg-muted/50 flex items-center justify-center transition-all text-muted-foreground hover:text-foreground cursor-pointer shadow-sm active:scale-90"
+              >
+                <ChevronLeft size={16} />
+              </button>
 
-                <div className="flex-grow space-y-2.5 w-full">
-                  <div className="text-left">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-foreground block">QR Code Scan</span>
-                    <p className="text-[11px] text-muted-foreground">Download and print this QR code to let others scan your card instantly.</p>
-                  </div>
+              {/* Rounded Indicators with Icons */}
+              <div className="flex items-center gap-2">
+                {CHECKLIST.map((step, idx) => {
+                  const done = workspaceCheckState[step.id] ?? false
+                  const active = idx === currentStepIdx
+                  const StepDotIcon = step.icon
 
-                  <div className="flex w-full gap-2">
-                    <a
-                      href={activeCard.qr_code_url}
-                      onClick={(e) => handleDownloadQR(e, activeCard.qr_code_url, `qr-${activeCard.slug}.png`)}
-                      className="flex-grow inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-[#3f5ce6]/10 hover:bg-[#3f5ce6]/25 border border-[#3f5ce6]/20 text-[#3f5ce6] text-xs font-bold cursor-pointer transition-all active:scale-95 text-center"
+                  return (
+                    <button
+                      key={step.id}
+                      onClick={() => setCurrentStepIdx(idx)}
+                      className={`relative rounded-full flex items-center justify-center transition-all duration-350 shadow-sm cursor-pointer ${
+                        active
+                          ? 'w-10 h-10 bg-[#3f5ce6]/10 border-2 border-[#3f5ce6] text-[#3f5ce6]'
+                          : done
+                            ? 'w-6 h-6 bg-emerald-500/5 border border-emerald-500/20 text-emerald-500/80 hover:text-emerald-400'
+                            : 'w-6 h-6 bg-[#0d0d0f] border border-[#1f1f23] text-muted-foreground/60 hover:text-foreground hover:border-zinc-700'
+                      }`}
+                      title={step.label}
                     >
-                      <Download size={13} /> Download QR
-                    </a>
-                    <a
-                      href={activeCard?.card_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center p-2.5 rounded-xl border border-border bg-background text-muted-foreground hover:text-[#3f5ce6] hover:bg-muted cursor-pointer active:scale-95 transition-all"
-                      title="Open Live Page"
-                    >
-                      <ExternalLink size={14} />
-                    </a>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="text-xs text-muted-foreground py-4 font-medium flex items-center gap-2">
-                <Loader2 size={13} className="animate-spin text-[#3f5ce6]" />
-                Generating QR Code...
+                      <StepDotIcon className={`transition-all ${active ? 'w-4.5 h-4.5' : 'w-3 h-3'}`} />
+                      
+                      {/* Strike line for completed steps */}
+                      {done && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <div className="w-[70%] h-[1.5px] bg-emerald-500 rotate-45 rounded-full" />
+                        </div>
+                      )}
+                    </button>
+                  )
+                })}
               </div>
-            )}
+
+              {/* Next Arrow */}
+              <button
+                onClick={nextStep}
+                className="w-8 h-8 rounded-xl border border-border bg-[#0d0d0f] hover:bg-muted/50 flex items-center justify-center transition-all text-muted-foreground hover:text-foreground cursor-pointer shadow-sm active:scale-90"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
-        </div>
+        )
+      })()}
+
+
+      {/* 3. Attached Image Statistics contents */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+        {[
+          {
+            id: 'profiles',
+            label: 'PROFILES',
+            value: cardProfiles?.length ?? 0,
+            sub: `${cardProfiles?.filter((p: any) => p.is_active)?.length ?? 0} active`,
+            icon: User,
+            color: '#8b5cf6',
+            href: '/dashboard/profiles',
+            hasBadge: false,
+          },
+          {
+            id: 'vcard',
+            label: 'VCARD',
+            value: hasVcard ? 'Set' : 'Empty',
+            sub: hasVcard ? 'contact info ready' : 'not filled yet',
+            icon: Contact,
+            color: '#06b6d4',
+            href: '/dashboard/vcard',
+            hasBadge: true,
+            isDone: hasVcard,
+          },
+          {
+            id: 'links',
+            label: 'LINKS',
+            value: profileLinks?.length ?? 0,
+            sub: `${profileLinks?.filter((l: any) => l.is_active ?? l.is_visible)?.length ?? 0} visible`,
+            icon: Link2,
+            color: '#10b981',
+            href: '/dashboard/links',
+            hasBadge: false,
+          },
+          {
+            id: 'leads',
+            label: 'LEAD FORMS',
+            value: leadForms?.length ?? 0,
+            sub: `${leads?.length ?? 0} leads captured`,
+            icon: FileText,
+            color: '#f59e0b',
+            href: '/dashboard/leads',
+            hasBadge: false,
+          },
+          {
+            id: 'products',
+            label: 'PRODUCTS',
+            value: profileProducts?.length ?? 0,
+            sub: 'in your profile',
+            icon: ShoppingBag,
+            color: '#ec4899',
+            href: '/dashboard/products',
+            hasBadge: false,
+          },
+          {
+            id: 'feeds',
+            label: 'FEEDS',
+            value: profileFeeds?.length ?? 0,
+            sub: 'published posts',
+            icon: Rss,
+            color: '#14b8a6',
+            href: '/dashboard/feeds',
+            hasBadge: false,
+          },
+        ].map((stat) => {
+          const StatIcon = stat.icon
+          return (
+            <button
+              key={stat.id}
+              onClick={() => router.push(stat.href)}
+              className="group bg-[#0d0d0f] border border-[#1f1f23] rounded-2xl p-4 px-3.5 text-left hover:border-zinc-700 hover:shadow-lg transition-all duration-200 relative overflow-hidden flex flex-col justify-between min-h-[125px] cursor-pointer"
+            >
+              <div className="flex items-center justify-between w-full">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: `${stat.color}15` }}
+                >
+                  <StatIcon className="w-4 h-4" style={{ color: stat.color }} />
+                </div>
+                {stat.hasBadge && (
+                  <div className="shrink-0">
+                    {stat.isDone ? (
+                      <div className="w-5.5 h-5.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                        <Check className="w-3 h-3" />
+                      </div>
+                    ) : (
+                      <div className="w-5.5 h-5.5 rounded-full bg-zinc-800/40 border border-zinc-700/60 flex items-center justify-center text-zinc-500">
+                        <Minus className="w-3 h-3" />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-3.5">
+                <div className="text-2xl font-black text-white leading-none tracking-tight">
+                  {stat.value}
+                </div>
+                <div className="text-[9px] font-black tracking-widest text-[#94949e] uppercase mt-1">
+                  {stat.label}
+                </div>
+                <div className="text-[9px] font-semibold text-[#65656c] mt-0.5 truncate w-full">
+                  {stat.sub}
+                </div>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Centered Large QR Code */}
+      <div className="flex flex-col items-center justify-center py-8 gap-5">
+        {activeCard?.qr_code_url ? (
+          <>
+            <div className="p-4 bg-white rounded-2xl shadow-xl border border-border/20 flex items-center justify-center" style={{ width: 220, height: 220 }}>
+              <img
+                src={activeCard.qr_code_url}
+                alt="QR Code"
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <div className="flex items-center gap-3">
+              <a
+                href={activeCard.qr_code_url}
+                onClick={(e) => handleDownloadQR(e, activeCard.qr_code_url, `qr-${activeCard.slug}.png`)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#3f5ce6]/10 hover:bg-[#3f5ce6]/20 border border-[#3f5ce6]/20 text-[#3f5ce6] text-xs font-bold cursor-pointer transition-all active:scale-95"
+              >
+                <Download size={13} /> Download QR
+              </a>
+              <a
+                href={activeCard?.card_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-border bg-background text-muted-foreground hover:text-[#3f5ce6] hover:border-[#3f5ce6]/30 text-xs font-bold cursor-pointer active:scale-95 transition-all"
+              >
+                <ExternalLink size={13} /> Open Live Page
+              </a>
+            </div>
+          </>
+        ) : (
+          <div className="text-xs text-muted-foreground py-8 font-medium flex items-center gap-2">
+            <Loader2 size={13} className="animate-spin text-[#3f5ce6]" />
+            Generating QR Code...
+          </div>
+        )}
       </div>
     </div>
   )

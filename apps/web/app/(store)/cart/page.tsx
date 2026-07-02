@@ -77,6 +77,51 @@ export default function CartPage() {
   const gst = getGst()
   const total = subtotal + gst
 
+  // Helper to compute card breakdown for items in cart
+  const getBreakdown = () => {
+    let baseCardsTotal = 0
+    let metallicUpgradesTotal = 0
+    let customBgUpgradesTotal = 0
+    let logoUpgradesTotal = 0
+    let totalQty = 0
+    let metallicQty = 0
+    let customBgQty = 0
+    let logoQty = 0
+
+    items.forEach((item) => {
+      const qty = item.quantity
+      totalQty += qty
+      baseCardsTotal += 49900 * qty
+
+      if (item.material.includes('Metallic')) {
+        metallicQty += qty
+        metallicUpgradesTotal += 20000 * qty
+      }
+      if (item.productType === 'custom') {
+        customBgQty += qty
+        customBgUpgradesTotal += 10000 * qty
+      }
+      const pers = item.personalisation as any
+      if (pers.logoUrl || pers.logoImageUrl) {
+        logoQty += qty
+        logoUpgradesTotal += 5000 * qty
+      }
+    })
+
+    return {
+      totalQty,
+      baseCardsTotal,
+      metallicQty,
+      metallicUpgradesTotal,
+      customBgQty,
+      customBgUpgradesTotal,
+      logoQty,
+      logoUpgradesTotal,
+    }
+  }
+
+  const breakdown = getBreakdown()
+
   if (items.length === 0) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-24 text-center space-y-6">
@@ -425,18 +470,50 @@ export default function CartPage() {
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">Order Summary</h2>
 
           {/* Pricing summary */}
-          <div className="space-y-3 text-sm text-[var(--text-secondary)]">
+          <div className="space-y-3 text-xs text-[var(--text-secondary)]">
+            {/* Card Base Price */}
+            <div className="flex justify-between font-medium">
+              <span>Base Smart Cards (₹499 × {breakdown.totalQty})</span>
+              <span className="text-[var(--text-primary)]">{formatPrice(breakdown.baseCardsTotal)}</span>
+            </div>
+
+            {/* Upgrades List */}
+            {(breakdown.metallicQty > 0 || breakdown.customBgQty > 0 || breakdown.logoQty > 0) && (
+              <div className="space-y-1.5 pl-2 border-l border-[var(--border)] py-1 text-[11px]">
+                {breakdown.metallicQty > 0 && (
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                    <span>Matte Metallic Upgrades (+₹200 × {breakdown.metallicQty})</span>
+                    <span>+{formatPrice(breakdown.metallicUpgradesTotal)}</span>
+                  </div>
+                )}
+                {breakdown.customBgQty > 0 && (
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                    <span>Custom Background Upgrades (+₹100 × {breakdown.customBgQty})</span>
+                    <span>+{formatPrice(breakdown.customBgUpgradesTotal)}</span>
+                  </div>
+                )}
+                {breakdown.logoQty > 0 && (
+                  <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
+                    <span>Brand Logo Overlay Upgrades (+₹50 × {breakdown.logoQty})</span>
+                    <span>+{formatPrice(breakdown.logoUpgradesTotal)}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <hr className="border-[var(--border)]" />
+
             <div className="flex justify-between">
-              <span>Subtotal</span>
+              <span>Cart Subtotal</span>
               <span className="font-medium text-[var(--text-primary)]">{formatPrice(subtotal)}</span>
             </div>
+            
             <div className="flex justify-between">
               <span>GST (18%)</span>
               <span className="font-medium text-[var(--text-primary)]">{formatPrice(gst)}</span>
             </div>
-            <p className="text-[10px] text-[var(--text-muted)] italic">GST @ 18% on card purchase</p>
 
-            <hr className="border-[var(--border)] my-4" />
+            <hr className="border-[var(--border)] my-2" />
             
             <div className="flex justify-between text-base font-bold text-[var(--text-primary)]">
               <span>Total</span>

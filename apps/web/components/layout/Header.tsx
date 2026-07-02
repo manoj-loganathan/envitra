@@ -60,7 +60,7 @@ export function Header() {
       if (session?.user) {
         const { data } = await supabase
           .from('accounts')
-          .select('full_name')
+          .select('full_name, avatar_url')
           .eq('id', session.user.id)
           .single()
         setProfile(data)
@@ -74,7 +74,7 @@ export function Header() {
       if (session?.user) {
         const { data } = await supabase
           .from('accounts')
-          .select('full_name')
+          .select('full_name, avatar_url')
           .eq('id', session.user.id)
           .single()
         setProfile(data)
@@ -188,9 +188,13 @@ export function Header() {
             <div className="relative">
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-primary text-sm font-semibold text-white shadow-purple-sm hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-primary text-sm font-semibold text-white shadow-purple-sm hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer overflow-hidden"
               >
-                {getInitials()}
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  getInitials()
+                )}
               </button>
 
               {dropdownOpen && (
@@ -208,7 +212,7 @@ export function Header() {
                       Dashboard
                     </Link>
                     <Link
-                      href="/orders"
+                      href="/dashboard/orders"
                       className="block px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-muted)] hover:text-purple-600"
                       onClick={() => setDropdownOpen(false)}
                     >
@@ -285,7 +289,7 @@ export function Header() {
                 Dashboard
               </Link>
               <Link
-                href="/orders"
+                href="/dashboard/orders"
                 className="block py-2 text-[15px] font-medium text-[var(--text-secondary)] hover:text-purple-600"
                 onClick={() => setIsOpen(false)}
               >

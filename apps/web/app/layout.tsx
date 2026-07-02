@@ -29,6 +29,8 @@ export const viewport = {
   viewportFit: 'cover',
 }
 
+import { Toaster } from 'sonner'
+
 export default function RootLayout({
   children,
 }: {
@@ -44,6 +46,7 @@ export default function RootLayout({
             <Footer />
             <CookieConsent />
           </div>
+          <Toaster richColors position="top-right" />
         </ThemeProvider>
       </body>
     </html>

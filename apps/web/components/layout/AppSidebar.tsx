@@ -52,7 +52,6 @@ const ALL_CARDS_NAV = [
 ]
 
 const CARD_NAV = [
-  { icon: LayoutDashboard, label: 'Overview',      tab: 'overview',  pro: false },
   { icon: CreditCard,      label: 'Card',          tab: 'card',      pro: false },
   { icon: User,            label: 'Profiles',      tab: 'profiles',  pro: false },
   { icon: Contact,         label: 'v Card',        tab: 'vcard',     pro: false },

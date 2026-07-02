@@ -1328,18 +1328,50 @@ export default function UnifiedDesignPage() {
             <hr className="border-[var(--border)]" />
 
             {/* Billing totals section */}
-            <div className="space-y-2 text-xs font-semibold text-[var(--text-secondary)] bg-[var(--bg-surface)] p-3 rounded-xl border border-[var(--border)]">
-              <div className="flex justify-between items-center">
-                <span>Price per Card</span>
-                <span className="text-[var(--text-primary)] font-bold">{formatPrice(singleCardPrice)}</span>
+            <div className="space-y-3 text-xs font-semibold text-[var(--text-secondary)] bg-[var(--bg-surface)] p-4 rounded-xl border border-[var(--border)] text-left">
+              <div className="space-y-2 border-b border-[var(--border)] pb-3">
+                <div className="flex justify-between items-center">
+                  <span>Base Smart Cards (₹499 × {quantity})</span>
+                  <span className="text-[var(--text-primary)] font-bold">{formatPrice(49900 * quantity)}</span>
+                </div>
+                {material === 'Metallic' && (
+                  <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-bold">
+                    <span>Material Upgrades (+₹200 × {quantity})</span>
+                    <span>+{formatPrice(20000 * quantity)}</span>
+                  </div>
+                )}
+                {bgType === 'custom' && (
+                  <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-bold">
+                    <span>Custom Background Upgrades (+₹100 × {quantity})</span>
+                    <span>+{formatPrice(10000 * quantity)}</span>
+                  </div>
+                )}
+                {logoUrl && (
+                  <div className="flex justify-between items-center text-emerald-600 dark:text-emerald-400 font-bold">
+                    <span>Brand Logo Overlay Upgrades (+₹50 × {quantity})</span>
+                    <span>+{formatPrice(5000 * quantity)}</span>
+                  </div>
+                )}
               </div>
-              <div className="flex justify-between items-center">
-                <span>Selected Quantity</span>
-                <span className="text-[var(--text-primary)] font-bold">{quantity}x</span>
+
+              <div className="space-y-2 pt-1">
+                <div className="flex justify-between items-center text-xs">
+                  <span>Cart Subtotal</span>
+                  <span className="text-[var(--text-primary)] font-bold">{formatPrice(totalPrice)}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span>GST (18%)</span>
+                  <span className="text-[var(--text-primary)] font-bold">{formatPrice(Math.round(totalPrice * 0.18))}</span>
+                </div>
+                <div className="flex justify-between items-center text-xs">
+                  <span>Digital Profile Plan</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">Pro (Active - ₹0)</span>
+                </div>
               </div>
-              <div className="flex justify-between items-center pt-2 border-t border-[var(--border)] text-sm font-bold text-[var(--text-primary)]">
-                <span>Grand Total</span>
-                <span className="text-purple-600 dark:text-purple-400 text-lg font-black">{formatPrice(totalPrice)}</span>
+
+              <div className="flex justify-between items-center pt-3 border-t border-[var(--border)] text-sm font-bold text-[var(--text-primary)]">
+                <span>Total Amount</span>
+                <span className="text-purple-600 dark:text-purple-400 text-lg font-black">{formatPrice(totalPrice + Math.round(totalPrice * 0.18))}</span>
               </div>
             </div>
 

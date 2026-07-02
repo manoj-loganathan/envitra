@@ -82,8 +82,8 @@ export interface DashboardContextType {
   setAllAccountLeadFormsLoading: Dispatch<SetStateAction<boolean>>
 
   // Account forms state
-  accountForm: { fullName: string; nfcRedirectToDashboard: boolean }
-  setAccountForm: Dispatch<SetStateAction<{ fullName: string; nfcRedirectToDashboard: boolean }>>
+  accountForm: { fullName: string; nfcRedirectToDashboard: boolean; agreedToTerms: boolean }
+  setAccountForm: Dispatch<SetStateAction<{ fullName: string; nfcRedirectToDashboard: boolean; agreedToTerms: boolean }>>
   currentSessionId: string
   setCurrentSessionId: Dispatch<SetStateAction<string>>
   loggedSessions: any[]

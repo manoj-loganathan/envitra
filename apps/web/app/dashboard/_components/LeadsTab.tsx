@@ -1451,7 +1451,7 @@ export function LeadsTab() {
                                       <label key={opt} className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-foreground/85 dark:text-zinc-350 select-none">
                                         <Checkbox
                                           checked={isChecked}
-                                          onCheckedChange={(checked) => {
+                                          onCheckedChange={(checked: boolean | 'indeterminate') => {
                                             let newList = [...checkedList]
                                             if (checked) newList.push(opt)
                                             else newList = newList.filter(o => o !== opt)
@@ -1466,7 +1466,7 @@ export function LeadsTab() {
                                     <label className="flex items-center gap-2.5 cursor-pointer text-xs font-semibold text-foreground/85 dark:text-zinc-350 select-none">
                                       <Checkbox
                                         checked={!!leadModalCustomData[field.id]}
-                                        onCheckedChange={(checked) => setLeadModalCustomData(p => ({ ...p, [field.id]: !!checked }))}
+                                        onCheckedChange={(checked: boolean | 'indeterminate') => setLeadModalCustomData(p => ({ ...p, [field.id]: !!checked }))}
                                       />
                                       <span>Confirm / Toggle</span>
                                     </label>
@@ -1649,7 +1649,7 @@ export function LeadsTab() {
                                     return (
                                       <Popover
                                         open={openDatePickerFieldId === field.id}
-                                        onOpenChange={(open) => setOpenDatePickerFieldId(open ? field.id : null)}
+                                        onOpenChange={(open: boolean) => setOpenDatePickerFieldId(open ? field.id : null)}
                                       >
                                         <PopoverTrigger asChild>
                                           <button

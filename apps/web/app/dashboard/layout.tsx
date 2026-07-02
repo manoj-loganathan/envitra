@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense, useRef } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { toast } from 'sonner'
 import { DashboardContext } from './context'
 import { AppSidebar } from '@/components/layout/AppSidebar'
 import { HeaderProfile } from '@/components/layout/HeaderProfile'
@@ -97,12 +98,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const setMessage = (msg: { type: 'success' | 'error'; text: string } | string | null) => {
     if (!msg) {
       setMessageState(null)
-    } else if (typeof msg === 'string') {
+      return
+    }
+    if (typeof msg === 'string') {
       setMessageState(msg)
       setMessageType('success')
+      toast.success(msg)
     } else {
       setMessageState(msg.text)
       setMessageType(msg.type)
+      if (msg.type === 'success') {
+        toast.success(msg.text)
+      } else {
+        toast.error(msg.text)
+      }
     }
   }
 
@@ -139,7 +148,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Account editing form states (needed in Settings)
   const [accountForm, setAccountForm] = useState({
     fullName: '',
-    nfcRedirectToDashboard: false
+    nfcRedirectToDashboard: false,
+    agreedToTerms: false
   })
 
   // Upgrade Modal control states
@@ -356,16 +366,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           profile_id,
           link_id,
           sort_order,
-          social_links (
+          is_active,
+          social_links!inner (
             id,
             category,
             platform,
             label,
             url,
-            is_active
+            account_id
           )
         `)
-        .eq('account_id', user.id)
+        .eq('social_links.account_id', user.id)
       if (!error && data) {
         const flattened = data
           .filter((item: any) => item.social_links)
@@ -377,7 +388,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             platform: item.social_links.platform,
             label: item.social_links.label,
             url: item.social_links.url,
-            is_active: item.social_links.is_active,
+            is_active: item.is_active,
             sort_order: item.sort_order
           }))
         setAllAccountLinks(flattened)
@@ -622,7 +633,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }
 
-  // Reload lists when the active profile switches
+  // Reload lists when the active profile switches or when in All Cards view
   useEffect(() => {
     if (activeProfile?.id) {
       fetchProfileLinks(activeProfile.id)
@@ -640,8 +651,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setLeadForms([])
       setProfileProducts([])
       setProfileFeeds([])
+      
+      // If we are in "All Cards" view, fetch account-wide data for all setups
+      if (activeCard?.id === 'all' && user?.id) {
+        fetchAllAccountProducts()
+        fetchAllAccountFeeds()
+        fetchAllAccountLinks()
+        fetchAllAccountLeadForms()
+      }
     }
-  }, [activeProfile?.id, user?.id])
+  }, [activeProfile?.id, activeCard?.id, user?.id])
 
   // Initial authentication check & account fetching
   const refreshAllData = async () => {
@@ -691,7 +710,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setProfile(accData)
         setAccountForm({
           fullName: accData.full_name || '',
-          nfcRedirectToDashboard: !!accData.nfc_redirect_to_dashboard
+          nfcRedirectToDashboard: !!accData.nfc_redirect_to_dashboard,
+          agreedToTerms: !!accData.agreed_to_terms
         })
       }
 
@@ -784,7 +804,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             setProfile(accData)
             setAccountForm({
               fullName: accData.full_name || '',
-              nfcRedirectToDashboard: !!accData.nfc_redirect_to_dashboard
+              nfcRedirectToDashboard: !!accData.nfc_redirect_to_dashboard,
+              agreedToTerms: !!accData.agreed_to_terms
             })
           }
         }
@@ -1281,19 +1302,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* Main scrollable body */}
             <main className="flex-1 overflow-y-auto p-6 relative">
-              {/* Alert Message Banner */}
-              {message && (
-                <div className={`p-4 rounded-xl border mb-6 flex justify-between items-start animate-in fade-in duration-200 ${
-                  messageType === 'success' 
-                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' 
-                    : 'bg-red-500/10 border-red-500/20 text-red-500'
-                }`}>
-                  <span className="text-xs font-semibold">{message}</span>
-                  <button onClick={() => setMessage(null)} className="text-muted-foreground hover:text-foreground cursor-pointer">
-                    <X size={14} />
-                  </button>
-                </div>
-              )}
+              {/* Alert Message Banner replaced by Sonner Toasts */}
               {children}
             </main>
           </SidebarInset>

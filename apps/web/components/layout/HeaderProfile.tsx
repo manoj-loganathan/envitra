@@ -33,7 +33,7 @@ export function HeaderProfile() {
           setUser(authUser)
           const { data } = await supabase
             .from('accounts')
-            .select('full_name')
+            .select('full_name, avatar_url')
             .eq('id', authUser.id)
             .single()
           setProfile(data)
@@ -52,7 +52,7 @@ export function HeaderProfile() {
         setUser(session.user)
         const { data } = await supabase
           .from('accounts')
-          .select('full_name')
+          .select('full_name, avatar_url')
           .eq('id', session.user.id)
           .single()
         setProfile(data)
@@ -87,6 +87,8 @@ export function HeaderProfile() {
           <button className="relative flex h-8 w-8 shrink-0 select-none items-center justify-center rounded-full bg-muted border border-border overflow-hidden transition-transform active:scale-95 focus:outline-none hover:border-foreground/30 shadow-sm cursor-pointer">
             {loading ? (
               <div className="h-full w-full animate-pulse bg-muted" />
+            ) : profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
             ) : (
               <span className="text-xs font-bold text-foreground">
                 {getInitials()}

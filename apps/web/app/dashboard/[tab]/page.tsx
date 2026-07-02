@@ -30,8 +30,8 @@ export default function TabPage() {
           router.replace('/dashboard/overview')
         }
       } else {
-        if (['orders'].includes(activeTab)) {
-          router.replace('/dashboard/overview')
+        if (['orders', 'overview'].includes(activeTab)) {
+          router.replace('/dashboard/card')
         }
       }
     }
@@ -50,7 +50,7 @@ export default function TabPage() {
   if (activeCard?.id === 'all' && !['overview', 'orders', 'settings'].includes(activeTab)) {
     return null
   }
-  if (activeCard?.id !== 'all' && ['orders'].includes(activeTab)) {
+  if (activeCard?.id !== 'all' && ['orders', 'overview'].includes(activeTab)) {
     return null
   }
 

@@ -3,14 +3,14 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { CheckCircle2, ChevronRight, Package, Truck, Smile, Inbox } from 'lucide-react'
+import { Check, ArrowRight, ShoppingBag, ShoppingCart } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 function OrderSuccessContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const orderId = searchParams.get('order')
-  const orderNumParam = searchParams.get('num')
+  const orderId = searchParams?.get('order')
+  const orderNumParam = searchParams?.get('num')
 
   const [orderNumber, setOrderNumber] = useState(orderNumParam || 'ENV-2026-XXXX')
   const [email, setEmail] = useState('')
@@ -89,84 +89,83 @@ function OrderSuccessContent() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-24 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-purple-600" />
+      <div className="mx-auto max-w-7xl px-4 py-32 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#3f5ce6]" />
       </div>
     )
   }
 
-  const timelineSteps = [
-    { name: 'Order Confirmed', desc: 'Payment verified successfully.', icon: CheckCircle2, active: true },
-    { name: 'In Production', desc: 'Customizing layout and chip.', icon: Package, active: false },
-    { name: 'Dispatched', desc: 'Shipped via courier.', icon: Truck, active: false },
-    { name: 'Delivered', desc: 'Card tapped & ready!', icon: Smile, active: false },
-  ]
-
   return (
-    <div className="mx-auto max-w-2xl px-4 py-16 text-center space-y-8">
-      
-      <div className="space-y-3">
-        <div className="w-16 h-16 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto animate-bounce">
-          <CheckCircle2 size={36} />
+    <div className="min-h-[80vh] flex flex-col items-center justify-center px-4 py-16 animate-fadeIn">
+      <div className="w-full max-w-md bg-card border border-border/40 rounded-3xl p-8 shadow-xl text-center space-y-6 relative overflow-hidden">
+        {/* Subtle decorative glow */}
+        <div className="absolute -top-24 -left-24 w-48 h-48 bg-[#3f5ce6]/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        {/* Success Icon */}
+        <div className="relative mx-auto w-16 h-16 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center shadow-lg">
+          <Check size={28} className="stroke-[3]" />
+          <div className="absolute inset-0 rounded-full border-2 border-emerald-400/20 animate-ping pointer-events-none scale-105" />
         </div>
-        <h1 className="text-3xl font-bold text-[var(--text-primary)]">Order confirmed!</h1>
-        <p className="text-sm font-semibold font-mono text-purple-600 dark:text-purple-400">{orderNumber}</p>
-        {email && (
-          <p className="text-xs text-[var(--text-secondary)] flex items-center justify-center gap-1">
-            <Inbox size={12} /> A confirmation invoice email has been sent to {email}
+
+        {/* Order Details Header */}
+        <div className="space-y-2">
+          <h1 className="text-2xl font-black text-foreground tracking-tight uppercase">
+            Order Confirmed
+          </h1>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Thank you for your purchase. Your digital business card configuration has been successfully queued for laser engraving.
           </p>
-        )}
-      </div>
+        </div>
 
-      <hr className="border-[var(--border)]" />
+        {/* Info card block */}
+        <div className="bg-muted/10 border border-border/10 rounded-2xl p-4.5 text-left space-y-2.5 text-xs">
+          <div className="flex justify-between items-center">
+            <span className="text-muted-foreground font-semibold">Order Reference</span>
+            <span className="font-mono font-bold text-foreground bg-muted/20 px-2 py-0.5 rounded border border-border/5">
+              {orderNumber}
+            </span>
+          </div>
+          {email && (
+            <div className="flex justify-between items-start gap-4">
+              <span className="text-muted-foreground font-semibold shrink-0">Confirmation Sent</span>
+              <span className="font-bold text-foreground text-right truncate max-w-[200px]" title={email}>
+                {email}
+              </span>
+            </div>
+          )}
+        </div>
 
-      {/* Production Timeline Visual */}
-      <div className="space-y-4 text-left">
-        <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">Production & Delivery Status</h3>
-        <div className="relative border-l-2 border-zinc-200 dark:border-zinc-800 ml-4 pl-6 space-y-8">
-          
-          {timelineSteps.map((step) => {
-            const Icon = step.icon
-            return (
-              <div key={step.name} className="relative">
-                {/* Checkpoint Dot */}
-                <span className={`absolute -left-[31px] top-0 flex h-4 w-4 items-center justify-center rounded-full ring-4 ring-[var(--bg-page)] ${
-                  step.active 
-                    ? 'bg-emerald-500 text-white' 
-                    : 'bg-zinc-200 dark:bg-zinc-850 text-zinc-400'
-                }`}>
-                  <span className="w-1.5 h-1.5 rounded-full bg-current" />
-                </span>
-                <div>
-                  <h4 className={`text-xs sm:text-sm font-semibold ${step.active ? 'text-emerald-500' : 'text-[var(--text-secondary)]'}`}>
-                    {step.name}
-                  </h4>
-                  <p className="text-[10px] sm:text-xs text-[var(--text-muted)]">{step.desc}</p>
-                </div>
-              </div>
-            )
-          })}
+        {/* Dynamic Stepper Bar (Horizontal Minimal) */}
+        <div className="py-2">
+          <div className="flex justify-between items-center text-[10px] text-muted-foreground/60 font-semibold mb-3 px-1">
+            <span className="text-emerald-500 font-bold">Confirmed</span>
+            <span>Production</span>
+            <span>Transit</span>
+            <span>Delivered</span>
+          </div>
+          {/* Progress bar line */}
+          <div className="relative w-full h-[3px] bg-border/20 rounded-full overflow-hidden">
+            <div className="absolute top-0 left-0 bottom-0 bg-[#3f5ce6] w-[12%] rounded-full shadow-xs" />
+          </div>
+        </div>
+
+        {/* Action Button Controls */}
+        <div className="flex flex-col gap-3 pt-2">
+          <Link
+            href={`/dashboard/orders?order=${orderId}`}
+            className="w-full inline-flex items-center justify-center gap-1.5 px-5 py-3 rounded-xl bg-[#3f5ce6] hover:bg-[#3050d8] text-white text-xs font-black transition-all active:scale-[0.98] cursor-pointer shadow-md select-none"
+          >
+            Track Order Details <ArrowRight size={13} />
+          </Link>
+          <Link
+            href="/shop"
+            className="w-full inline-flex items-center justify-center gap-1.5 px-5 py-3 rounded-xl border border-border bg-background hover:bg-muted/50 text-foreground text-xs font-bold transition-all active:scale-[0.98] cursor-pointer select-none"
+          >
+            <ShoppingCart size={13} /> Keep Shopping
+          </Link>
         </div>
       </div>
-
-      <hr className="border-[var(--border)]" />
-
-      {/* Bottom actions */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-center">
-        <Link
-          href={`/orders/${orderId}`}
-          className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-btn font-medium text-white text-xs bg-gradient-primary hover:bg-gradient-primary-hover shadow-purple-md transition-all duration-200"
-        >
-          View Order Details <ChevronRight size={14} />
-        </Link>
-        <Link
-          href="/shop"
-          className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-btn font-medium text-purple-600 border border-[var(--border-purple)] text-xs hover:bg-purple-600/10 transition-all duration-200"
-        >
-          Keep Shopping
-        </Link>
-      </div>
-
     </div>
   )
 }
@@ -174,8 +173,8 @@ function OrderSuccessContent() {
 export default function OrderSuccessPage() {
   return (
     <Suspense fallback={
-      <div className="mx-auto max-w-7xl px-4 py-24 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-purple-600" />
+      <div className="mx-auto max-w-7xl px-4 py-32 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#3f5ce6]" />
       </div>
     }>
       <OrderSuccessContent />

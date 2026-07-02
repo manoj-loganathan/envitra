@@ -1001,7 +1001,7 @@ export function ProfilesTab() {
                   <Checkbox
                     id="set-live"
                     checked={profileForm.isActive}
-                    onCheckedChange={(checked) => {
+                    onCheckedChange={(checked: boolean | 'indeterminate') => {
                       const isChecked = !!checked;
                       setProfileForm(prev => ({
                         ...prev,
@@ -1027,7 +1027,7 @@ export function ProfilesTab() {
                     id="set-primary"
                     checked={profileForm.primaryProfile}
                     disabled={editingProfile?.primary_profile && cardProfiles.length > 1}
-                    onCheckedChange={(checked) => setProfileForm(prev => ({ ...prev, primaryProfile: !!checked }))}
+                    onCheckedChange={(checked: boolean | 'indeterminate') => setProfileForm(prev => ({ ...prev, primaryProfile: !!checked }))}
                   />
                   <div className="text-left space-y-0.5">
                     <span className="text-xs font-black text-amber-500 flex items-center gap-1">

@@ -1482,7 +1482,7 @@ export function LinksTab() {
                           <div className="flex items-center gap-3 min-w-0">
                             <Checkbox
                               checked={isChecked}
-                              onCheckedChange={checked => {
+                              onCheckedChange={(checked: boolean | 'indeterminate') => {
                                 if (checked) {
                                   setLinkModalCheckedProfiles(prev => [...prev, p.id])
                                 } else {

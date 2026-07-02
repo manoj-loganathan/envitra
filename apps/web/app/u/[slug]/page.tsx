@@ -4,6 +4,10 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { Calendar as ShadcnCalendar } from '@/components/ui/calendar'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { format } from 'date-fns'
 import { 
   Phone, Mail, MapPin, Globe, Briefcase, FileText, 
   Star, ThumbsUp, Heart, Flame, MessageCircle, Share2, 
@@ -150,7 +154,8 @@ const ProductCardCarousel = ({
   objectFit = 'cover',
   heightClass = 'h-full',
   sliderClassName = '',
-  style
+  style,
+  onImageClick
 }: { 
   imageUrls: string[]; 
   alt: string; 
@@ -158,6 +163,7 @@ const ProductCardCarousel = ({
   heightClass?: string;
   sliderClassName?: string;
   style?: React.CSSProperties;
+  onImageClick?: (index: number) => void;
 }) => {
   const length = imageUrls.length;
   const [currentIndex, setCurrentIndex] = useState(1);
@@ -261,7 +267,8 @@ const ProductCardCarousel = ({
       <img
         src={imageUrls[0]}
         alt={alt}
-        className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
+        className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300 cursor-pointer"
+        onClick={() => onImageClick && onImageClick(0)}
       />
     );
   }
@@ -297,7 +304,16 @@ const ProductCardCarousel = ({
           }}
         >
           {slides.map((url, idx) => (
-            <div key={idx} className="w-full h-full shrink-0">
+            <div 
+              key={idx} 
+              className="w-full h-full shrink-0 cursor-pointer"
+              onClick={() => {
+                if (onImageClick) {
+                  const originalIndex = idx === 0 ? length - 1 : idx === length + 1 ? 0 : idx - 1;
+                  onImageClick(originalIndex);
+                }
+              }}
+            >
               <img src={url} alt={`${alt} - slide`} className={`w-full h-full object-${objectFit}`} />
             </div>
           ))}
@@ -530,6 +546,62 @@ export default function NFCProfileLandingPage() {
   const [submittingReview, setSubmittingReview] = useState<Record<string, boolean>>({})
   const [reviewSubmittedProductIds, setReviewSubmittedProductIds] = useState<string[]>([])
   const [imageDimensions, setImageDimensions] = useState<Record<string, { width: number; height: number }>>({})
+
+  // Product Lightbox states
+  const [lightboxImages, setLightboxImages] = useState<string[]>([])
+  const [lightboxIndex, setLightboxIndex] = useState<number>(0)
+  const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false)
+
+  // Date Picker open state
+  const [openDatePickerId, setOpenDatePickerId] = useState<string | null>(null)
+
+  // Parse YYYY-MM-DD string to local Date object
+  const parseLocalDate = (dateStr: string) => {
+    if (!dateStr) return undefined;
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return undefined;
+    const [year, month, day] = parts.map(Number);
+    return new Date(year, month - 1, day);
+  };
+
+  // Lightbox keyboard navigation logic
+  useEffect(() => {
+    if (!isLightboxOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsLightboxOpen(false);
+      } else if (e.key === 'ArrowRight' && lightboxImages.length > 1) {
+        setLightboxIndex((prev) => (prev + 1) % lightboxImages.length);
+      } else if (e.key === 'ArrowLeft' && lightboxImages.length > 1) {
+        setLightboxIndex((prev) => (prev - 1 + lightboxImages.length) % lightboxImages.length);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isLightboxOpen, lightboxImages]);
+
+  // Touch handlers for Lightbox swipe on mobile
+  const lightboxTouchStartX = useRef(0);
+  const lightboxTouchEndX = useRef(0);
+
+  const handleLightboxTouchStart = (e: React.TouchEvent) => {
+    lightboxTouchStartX.current = e.touches[0].clientX;
+    lightboxTouchEndX.current = e.touches[0].clientX;
+  };
+
+  const handleLightboxTouchMove = (e: React.TouchEvent) => {
+    lightboxTouchEndX.current = e.touches[0].clientX;
+  };
+
+  const handleLightboxTouchEnd = () => {
+    const diffX = lightboxTouchStartX.current - lightboxTouchEndX.current;
+    const swipeThreshold = 40;
+    if (diffX > swipeThreshold && lightboxImages.length > 1) {
+      setLightboxIndex((prev) => (prev + 1) % lightboxImages.length);
+    } else if (diffX < -swipeThreshold && lightboxImages.length > 1) {
+      setLightboxIndex((prev) => (prev - 1 + lightboxImages.length) % lightboxImages.length);
+    }
+  };
 
 
   // Subscription helpers
@@ -1539,19 +1611,57 @@ export default function NFCProfileLandingPage() {
                   >
                     {/* Image Carousel / Banner Header */}
                     {hasImages ? (
-                      <ProductCardCarousel 
-                        imageUrls={p.image_urls} 
-                        alt={p.name} 
-                        heightClass="h-48" 
-                        sliderClassName="border-b border-zinc-800/60"
-                      />
+                      <div className="relative">
+                        <ProductCardCarousel 
+                          imageUrls={p.image_urls} 
+                          alt={p.name} 
+                          heightClass="h-48" 
+                          sliderClassName="border-b border-zinc-800/60"
+                          onImageClick={(index) => {
+                            setLightboxImages(p.image_urls);
+                            setLightboxIndex(index);
+                            setIsLightboxOpen(true);
+                          }}
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setLightboxImages(p.image_urls);
+                            setLightboxIndex(0);
+                            setIsLightboxOpen(true);
+                          }}
+                          className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-xl bg-black/60 hover:bg-black/80 backdrop-blur-xs text-white text-[10px] font-black z-10 transition-all flex items-center gap-1 select-none border border-zinc-800/40 cursor-pointer shadow-xs active:scale-95"
+                        >
+                          <Eye size={10} /> View Photos
+                        </button>
+                      </div>
                     ) : p.image_url ? (
-                      <div className="h-48 relative overflow-hidden bg-zinc-950 border-b border-zinc-800/60">
+                      <div 
+                        className="h-48 relative overflow-hidden bg-zinc-950 border-b border-zinc-800/60 cursor-pointer group/img"
+                        onClick={() => {
+                          setLightboxImages([p.image_url]);
+                          setLightboxIndex(0);
+                          setIsLightboxOpen(true);
+                        }}
+                      >
                         <img 
                           src={p.image_url} 
                           alt={p.name} 
                           className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
                         />
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setLightboxImages([p.image_url]);
+                            setLightboxIndex(0);
+                            setIsLightboxOpen(true);
+                          }}
+                          className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-xl bg-black/60 hover:bg-black/80 backdrop-blur-xs text-white text-[10px] font-black z-10 transition-all flex items-center gap-1 select-none border border-zinc-800/40 cursor-pointer shadow-xs active:scale-95"
+                        >
+                          <Eye size={10} /> View Full
+                        </button>
                       </div>
                     ) : (
                       <div className="h-48 bg-gradient-to-br from-purple-500/5 to-indigo-500/5 flex items-center justify-center border-b border-zinc-800/60">
@@ -1569,7 +1679,7 @@ export default function NFCProfileLandingPage() {
                       </div>
                       
                       {p.description && (
-                        <p className="text-[11px] text-zinc-400 line-clamp-2 leading-relaxed">
+                        <p className="text-[11px] text-zinc-400 leading-relaxed whitespace-pre-wrap">
                           {p.description}
                         </p>
                       )}
@@ -1693,56 +1803,146 @@ export default function NFCProfileLandingPage() {
                               <div className="text-[10px] font-bold text-zinc-450 uppercase tracking-widest pl-0.5">
                                 {selectedEnquiryForm[p.id].title || 'Enquire Now'}
                               </div>
-                              {(selectedEnquiryForm[p.id].fields || []).map((f: any) => (
-                                <div key={f.id} className="space-y-1">
-                                  <label className="text-[9px] font-semibold text-zinc-400">{f.label} {f.required && '*'}</label>
-                                  {f.type === 'textarea' ? (
-                                    <textarea
-                                      required={f.required}
-                                      value={inlineEnquiryData[`${p.id}_${f.id}`] || ''}
-                                      onChange={e => setInlineEnquiryData({ ...inlineEnquiryData, [`${p.id}_${f.id}`]: e.target.value })}
-                                      placeholder={f.placeholder}
-                                      rows={2}
-                                      className="w-full px-3 py-2 text-xs bg-zinc-950 border border-zinc-800 rounded-xl focus:border-[#3f5ce6] focus:outline-none placeholder-zinc-500 text-zinc-100 resize-none"
-                                    />
-                                  ) : f.type === 'select' ? (
-                                    <select
-                                      required={f.required}
-                                      value={inlineEnquiryData[`${p.id}_${f.id}`] || ''}
-                                      onChange={e => setInlineEnquiryData({ ...inlineEnquiryData, [`${p.id}_${f.id}`]: e.target.value })}
-                                      className="w-full px-3 py-2 text-xs bg-zinc-950 border border-zinc-800 rounded-xl focus:border-[#3f5ce6] focus:outline-none text-zinc-100"
-                                    >
-                                      <option value="">Select option</option>
-                                      {(f.options || []).map((o: string, index: number) => (
-                                        <option key={index} value={o}>{o}</option>
-                                      ))}
-                                    </select>
-                                  ) : f.type === 'checkbox' ? (
-                                    <div className="flex items-center gap-2 py-0.5">
-                                      <input
-                                        type="checkbox"
-                                        required={f.required}
-                                        checked={!!inlineEnquiryData[`${p.id}_${f.id}`]}
-                                        onChange={e => setInlineEnquiryData({ ...inlineEnquiryData, [`${p.id}_${f.id}`]: e.target.checked })}
-                                        id={`inline-check-${p.id}-${f.id}`}
-                                        className="w-3.5 h-3.5 text-[#3f5ce6] border-zinc-800 bg-zinc-950 rounded focus:ring-0 cursor-pointer"
-                                      />
-                                      <label htmlFor={`inline-check-${p.id}-${f.id}`} className="text-[9px] font-medium text-zinc-400 cursor-pointer select-none">
-                                        {f.placeholder || 'Check to confirm'}
-                                      </label>
+                              {(selectedEnquiryForm[p.id].fields || []).map((f: any) => {
+                                if (f.type === 'heading') {
+                                  return (
+                                    <div key={f.id} className="text-xs font-bold text-zinc-350 pt-2 pb-1 border-t border-zinc-800/40 mt-3 first:mt-0 first:border-0 first:pt-0 leading-relaxed">
+                                      {f.label}
                                     </div>
-                                  ) : (
-                                    <input 
-                                      type={f.type === 'email' ? 'email' : f.type === 'phone' ? 'tel' : 'text'} 
-                                      required={f.required}
-                                      value={inlineEnquiryData[`${p.id}_${f.id}`] || ''}
-                                      onChange={e => setInlineEnquiryData({ ...inlineEnquiryData, [`${p.id}_${f.id}`]: e.target.value })}
-                                      placeholder={f.placeholder}
-                                      className="w-full px-3 py-2 text-xs bg-zinc-950 border border-zinc-800 rounded-xl focus:border-[#3f5ce6] focus:ring-1 focus:ring-[#3f5ce6]/20 focus:outline-none placeholder-zinc-500 text-zinc-100"
-                                    />
-                                  )}
-                                </div>
-                              ))}
+                                  )
+                                }
+
+                                return (
+                                   <div key={f.id} className="space-y-1">
+                                     <label className="text-[9px] font-semibold text-zinc-400">{f.label} {f.required && '*'}</label>
+                                     {f.type === 'textarea' ? (
+                                       <textarea
+                                         required={f.required}
+                                         value={inlineEnquiryData[`${p.id}_${f.id}`] || ''}
+                                         onChange={e => setInlineEnquiryData({ ...inlineEnquiryData, [`${p.id}_${f.id}`]: e.target.value })}
+                                         placeholder={f.placeholder}
+                                         rows={2}
+                                         className="w-full px-3 py-2 text-xs bg-zinc-950 border border-zinc-800 rounded-xl focus:border-[#3f5ce6] focus:outline-none placeholder-zinc-500 text-zinc-100 resize-none"
+                                       />
+                                     ) : f.type === 'select' ? (
+                                       <select
+                                         required={f.required}
+                                         value={inlineEnquiryData[`${p.id}_${f.id}`] || ''}
+                                         onChange={e => setInlineEnquiryData({ ...inlineEnquiryData, [`${p.id}_${f.id}`]: e.target.value })}
+                                         className="w-full px-3 py-2 text-xs bg-zinc-950 border border-zinc-800 rounded-xl focus:border-[#3f5ce6] focus:outline-none text-zinc-100"
+                                       >
+                                         <option value="">Select option</option>
+                                         {(f.options || []).map((o: string, index: number) => (
+                                           <option key={index} value={o}>{o}</option>
+                                         ))}
+                                       </select>
+                                     ) : f.type === 'checkbox' ? (
+                                       f.options && f.options.length > 0 ? (
+                                         f.multiple ? (
+                                           <div className="flex flex-wrap gap-2 pt-1">
+                                             {f.options.map((o: string, index: number) => {
+                                               const isChecked = Array.isArray(inlineEnquiryData[`${p.id}_${f.id}`]) && inlineEnquiryData[`${p.id}_${f.id}`].includes(o);
+                                               return (
+                                                 <div key={index} className="flex items-center gap-1.5 bg-zinc-950 px-3 py-1.5 rounded-full border border-zinc-800 hover:border-zinc-700 transition-colors cursor-pointer select-none">
+                                                   <Checkbox
+                                                     id={`inline-check-${p.id}-${f.id}-${index}`}
+                                                     checked={isChecked}
+                                                     onCheckedChange={(checked: boolean | 'indeterminate') => {
+                                                       const currentValues = Array.isArray(inlineEnquiryData[`${p.id}_${f.id}`])
+                                                         ? [...inlineEnquiryData[`${p.id}_${f.id}`]]
+                                                         : [];
+                                                       if (checked) {
+                                                         currentValues.push(o);
+                                                       } else {
+                                                         const idx = currentValues.indexOf(o);
+                                                         if (idx > -1) currentValues.splice(idx, 1);
+                                                       }
+                                                       setInlineEnquiryData({ ...inlineEnquiryData, [`${p.id}_${f.id}`]: currentValues });
+                                                     }}
+                                                     className="w-3.5 h-3.5 text-[#3f5ce6] border-zinc-800 bg-zinc-900 rounded-sm focus:ring-0 cursor-pointer"
+                                                   />
+                                                   <label htmlFor={`inline-check-${p.id}-${f.id}-${index}`} className="text-[10px] text-zinc-300 leading-none cursor-pointer">
+                                                     {o}
+                                                   </label>
+                                                 </div>
+                                               )
+                                             })}
+                                           </div>
+                                         ) : (
+                                           <div className="flex flex-wrap gap-2 pt-1">
+                                             {f.options.map((o: string, index: number) => {
+                                               const isChecked = inlineEnquiryData[`${p.id}_${f.id}`] === o;
+                                               return (
+                                                 <label key={index} className="flex items-center gap-1.5 bg-zinc-950 px-3 py-1.5 rounded-full border border-zinc-800 hover:border-zinc-700 transition-colors cursor-pointer select-none">
+                                                   <input
+                                                     type="radio"
+                                                     name={`inline-radio-${p.id}-${f.id}`}
+                                                     checked={isChecked}
+                                                     onChange={() => setInlineEnquiryData({ ...inlineEnquiryData, [`${p.id}_${f.id}`]: o })}
+                                                     className="w-3.5 h-3.5 text-[#3f5ce6] border-zinc-800 bg-zinc-900 rounded-full focus:ring-0 cursor-pointer"
+                                                   />
+                                                   <span className="text-[10px] text-zinc-300 leading-none">{o}</span>
+                                                 </label>
+                                               )
+                                             })}
+                                           </div>
+                                         )
+                                       ) : (
+                                         <div className="flex items-center gap-2 py-0.5">
+                                           <Checkbox
+                                             id={`inline-check-${p.id}-${f.id}`}
+                                             checked={!!inlineEnquiryData[`${p.id}_${f.id}`]}
+                                             onCheckedChange={(checked: boolean | 'indeterminate') => setInlineEnquiryData({ ...inlineEnquiryData, [`${p.id}_${f.id}`]: !!checked })}
+                                           />
+                                           <label htmlFor={`inline-check-${p.id}-${f.id}`} className="text-[9px] font-medium text-zinc-400 cursor-pointer select-none leading-none pt-0.5">
+                                             {f.placeholder || 'Check to confirm'}
+                                           </label>
+                                         </div>
+                                       )
+                                     ) : f.type === 'date' ? (
+                                        <Popover
+                                          open={openDatePickerId === `${p.id}_${f.id}`}
+                                          onOpenChange={(open: boolean) => setOpenDatePickerId(open ? `${p.id}_${f.id}` : null)}
+                                        >
+                                          <PopoverTrigger asChild>
+                                            <button
+                                              type="button"
+                                              className="w-full px-3 py-2 text-left text-xs bg-zinc-950 border border-zinc-800 rounded-xl focus:border-[#3f5ce6] focus:outline-none text-zinc-300 flex items-center justify-between cursor-pointer"
+                                            >
+                                              <span>
+                                                {inlineEnquiryData[`${p.id}_${f.id}`]
+                                                  ? format(parseLocalDate(inlineEnquiryData[`${p.id}_${f.id}`])!, "PPP")
+                                                  : f.placeholder || "Pick a date"}
+                                              </span>
+                                              <Calendar className="h-4 w-4 text-zinc-500" />
+                                            </button>
+                                          </PopoverTrigger>
+                                          <PopoverContent className="w-auto p-0 bg-zinc-950 border border-zinc-800 rounded-xl" align="start">
+                                            <ShadcnCalendar
+                                              mode="single"
+                                              selected={inlineEnquiryData[`${p.id}_${f.id}`] ? parseLocalDate(inlineEnquiryData[`${p.id}_${f.id}`]) : undefined}
+                                              onSelect={date => {
+                                                const formattedDate = date ? format(date, 'yyyy-MM-dd') : '';
+                                                setInlineEnquiryData({ ...inlineEnquiryData, [`${p.id}_${f.id}`]: formattedDate });
+                                                setOpenDatePickerId(null);
+                                              }}
+                                              initialFocus
+                                            />
+                                          </PopoverContent>
+                                        </Popover>
+                                     ) : (
+                                       <input 
+                                         type={f.type === 'email' ? 'email' : f.type === 'phone' ? 'tel' : f.type === 'number' ? 'number' : 'text'} 
+                                         required={f.required}
+                                         value={inlineEnquiryData[`${p.id}_${f.id}`] || ''}
+                                         onChange={e => setInlineEnquiryData({ ...inlineEnquiryData, [`${p.id}_${f.id}`]: e.target.value })}
+                                         placeholder={f.placeholder}
+                                         className="w-full px-3 py-2 text-xs bg-zinc-950 border border-zinc-800 rounded-xl focus:border-[#3f5ce6] focus:ring-1 focus:ring-[#3f5ce6]/20 focus:outline-none placeholder-zinc-500 text-zinc-100"
+                                       />
+                                     )}
+                                   </div>
+                                )
+                              })}
                               <button
                                 type="submit"
                                 disabled={submittingEnquiry[p.id]}
@@ -1908,56 +2108,146 @@ export default function NFCProfileLandingPage() {
             ) : (
               <form onSubmit={handleLeadSubmit} className="space-y-3 bg-zinc-800/20 p-4 border border-zinc-800/50 rounded-2xl">
                 {/* Render custom fields dynamically */}
-                {(leadForm.fields || []).map((f: any) => (
-                  <div key={f.id} className="space-y-1">
-                    <label className="text-[10px] font-semibold text-zinc-400">{f.label} {f.required && '*'}</label>
-                    {f.type === 'textarea' ? (
-                      <textarea
-                        required={f.required}
-                        value={leadCustomData[f.id] || ''}
-                        onChange={e => setLeadCustomData({ ...leadCustomData, [f.id]: e.target.value })}
-                        placeholder={f.placeholder}
-                        rows={3}
-                        className="w-full px-3.5 py-2.5 text-base sm:text-xs bg-zinc-950 border border-zinc-800 rounded-xl focus:border-[#3f5ce6] focus:ring-1 focus:ring-[#3f5ce6]/20 focus:outline-none placeholder-zinc-500 text-zinc-100 resize-none"
-                      />
-                    ) : f.type === 'select' ? (
-                      <select
-                        required={f.required}
-                        value={leadCustomData[f.id] || ''}
-                        onChange={e => setLeadCustomData({ ...leadCustomData, [f.id]: e.target.value })}
-                        className="w-full px-3.5 py-2.5 text-base sm:text-xs bg-zinc-950 border border-zinc-800 rounded-xl focus:border-[#3f5ce6] focus:outline-none text-zinc-100"
-                      >
-                        <option value="">Select option</option>
-                        {(f.options || []).map((o: string, index: number) => (
-                          <option key={index} value={o}>{o}</option>
-                        ))}
-                      </select>
-                    ) : f.type === 'checkbox' ? (
-                      <div className="flex items-center gap-2 py-1">
-                        <input
-                          type="checkbox"
-                          required={f.required}
-                          checked={!!leadCustomData[f.id]}
-                          onChange={e => setLeadCustomData({ ...leadCustomData, [f.id]: e.target.checked })}
-                          id={`custom-check-${f.id}`}
-                          className="w-4 h-4 text-[#3f5ce6] border-zinc-800 bg-zinc-950 rounded focus:ring-0 cursor-pointer"
-                        />
-                        <label htmlFor={`custom-check-${f.id}`} className="text-[10px] font-medium text-zinc-400 cursor-pointer select-none">
-                          {f.placeholder || 'Check to confirm'}
-                        </label>
+                {(leadForm.fields || []).map((f: any) => {
+                  if (f.type === 'heading') {
+                    return (
+                      <div key={f.id} className="text-xs font-bold text-zinc-350 pt-3 pb-1 border-t border-zinc-800/40 mt-4 first:mt-0 first:border-0 first:pt-0 leading-relaxed">
+                        {f.label}
                       </div>
-                    ) : (
-                      <input 
-                        type={f.type === 'email' ? 'email' : f.type === 'phone' ? 'tel' : 'text'} 
-                        required={f.required}
-                        value={leadCustomData[f.id] || ''}
-                        onChange={e => setLeadCustomData({ ...leadCustomData, [f.id]: e.target.value })}
-                        placeholder={f.placeholder}
-                        className="w-full px-3.5 py-2.5 text-base sm:text-xs bg-zinc-950 border border-zinc-800 rounded-xl focus:border-[#3f5ce6] focus:ring-1 focus:ring-[#3f5ce6]/20 focus:outline-none placeholder-zinc-500 text-zinc-100"
-                      />
-                    )}
-                  </div>
-                ))}
+                    )
+                  }
+
+                  return (
+                    <div key={f.id} className="space-y-1">
+                      <label className="text-[10px] font-semibold text-zinc-400">{f.label} {f.required && '*'}</label>
+                      {f.type === 'textarea' ? (
+                        <textarea
+                          required={f.required}
+                          value={leadCustomData[f.id] || ''}
+                          onChange={e => setLeadCustomData({ ...leadCustomData, [f.id]: e.target.value })}
+                          placeholder={f.placeholder}
+                          rows={3}
+                          className="w-full px-3.5 py-2.5 text-base sm:text-xs bg-zinc-950 border border-zinc-800 rounded-xl focus:border-[#3f5ce6] focus:ring-1 focus:ring-[#3f5ce6]/20 focus:outline-none placeholder-zinc-500 text-zinc-100 resize-none"
+                        />
+                      ) : f.type === 'select' ? (
+                        <select
+                          required={f.required}
+                          value={leadCustomData[f.id] || ''}
+                          onChange={e => setLeadCustomData({ ...leadCustomData, [f.id]: e.target.value })}
+                          className="w-full px-3.5 py-2.5 text-base sm:text-xs bg-zinc-950 border border-zinc-800 rounded-xl focus:border-[#3f5ce6] focus:outline-none text-zinc-100"
+                        >
+                          <option value="">Select option</option>
+                          {(f.options || []).map((o: string, index: number) => (
+                            <option key={index} value={o}>{o}</option>
+                          ))}
+                        </select>
+                      ) : f.type === 'checkbox' ? (
+                        f.options && f.options.length > 0 ? (
+                          f.multiple ? (
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              {f.options.map((o: string, index: number) => {
+                                const isChecked = Array.isArray(leadCustomData[f.id]) && leadCustomData[f.id].includes(o);
+                                return (
+                                  <div key={index} className="flex items-center gap-2 bg-zinc-950 px-3.5 py-2 rounded-full border border-zinc-800 hover:border-zinc-700 transition-colors cursor-pointer select-none">
+                                    <Checkbox
+                                      id={`custom-check-${f.id}-${index}`}
+                                      checked={isChecked}
+                                      onCheckedChange={(checked: boolean | 'indeterminate') => {
+                                        const currentValues = Array.isArray(leadCustomData[f.id])
+                                          ? [...leadCustomData[f.id]]
+                                          : [];
+                                        if (checked) {
+                                          currentValues.push(o);
+                                        } else {
+                                          const idx = currentValues.indexOf(o);
+                                          if (idx > -1) currentValues.splice(idx, 1);
+                                        }
+                                        setLeadCustomData({ ...leadCustomData, [f.id]: currentValues });
+                                      }}
+                                      className="w-4 h-4 text-[#3f5ce6] border-zinc-800 bg-zinc-900 rounded-sm focus:ring-0 cursor-pointer"
+                                    />
+                                    <label htmlFor={`custom-check-${f.id}-${index}`} className="text-xs text-zinc-355 leading-none cursor-pointer">
+                                      {o}
+                                    </label>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          ) : (
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              {f.options.map((o: string, index: number) => {
+                                const isChecked = leadCustomData[f.id] === o;
+                                return (
+                                  <label key={index} className="flex items-center gap-2 bg-zinc-950 px-3.5 py-2 rounded-full border border-zinc-800 hover:border-zinc-700 transition-colors cursor-pointer select-none">
+                                    <input
+                                      type="radio"
+                                      name={`lead-radio-${f.id}`}
+                                      checked={isChecked}
+                                      onChange={() => setLeadCustomData({ ...leadCustomData, [f.id]: o })}
+                                      className="w-4 h-4 text-[#3f5ce6] border-zinc-800 bg-zinc-900 rounded-full focus:ring-0 cursor-pointer"
+                                    />
+                                    <span className="text-xs text-zinc-350 leading-none">{o}</span>
+                                  </label>
+                                )
+                              })}
+                            </div>
+                          )
+                        ) : (
+                          <div className="flex items-center gap-2 py-1">
+                            <Checkbox
+                              id={`custom-check-${f.id}`}
+                              checked={!!leadCustomData[f.id]}
+                              onCheckedChange={(checked: boolean | 'indeterminate') => setLeadCustomData({ ...leadCustomData, [f.id]: !!checked })}
+                            />
+                            <label htmlFor={`custom-check-${f.id}`} className="text-[10px] font-medium text-zinc-400 cursor-pointer select-none leading-none pt-0.5">
+                              {f.placeholder || 'Check to confirm'}
+                            </label>
+                          </div>
+                        )
+                      ) : f.type === 'date' ? (
+                        <Popover
+                          open={openDatePickerId === `lead_${f.id}`}
+                          onOpenChange={(open: boolean) => setOpenDatePickerId(open ? `lead_${f.id}` : null)}
+                        >
+                          <PopoverTrigger asChild>
+                            <button
+                              type="button"
+                              className="w-full px-3.5 py-2.5 text-left text-base sm:text-xs bg-zinc-950 border border-zinc-800 rounded-xl focus:border-[#3f5ce6] focus:outline-none text-zinc-300 flex items-center justify-between cursor-pointer"
+                            >
+                              <span>
+                                {leadCustomData[f.id]
+                                  ? format(parseLocalDate(leadCustomData[f.id])!, "PPP")
+                                  : f.placeholder || "Pick a date"}
+                              </span>
+                              <Calendar className="h-4 w-4 text-zinc-500" />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0 bg-zinc-950 border border-zinc-800 rounded-xl" align="start">
+                            <ShadcnCalendar
+                              mode="single"
+                              selected={leadCustomData[f.id] ? parseLocalDate(leadCustomData[f.id]) : undefined}
+                              onSelect={date => {
+                                const formattedDate = date ? format(date, 'yyyy-MM-dd') : '';
+                                setLeadCustomData({ ...leadCustomData, [f.id]: formattedDate });
+                                setOpenDatePickerId(null);
+                              }}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      ) : (
+                        <input 
+                          type={f.type === 'email' ? 'email' : f.type === 'phone' ? 'tel' : f.type === 'number' ? 'number' : 'text'} 
+                          required={f.required}
+                          value={leadCustomData[f.id] || ''}
+                          onChange={e => setLeadCustomData({ ...leadCustomData, [f.id]: e.target.value })}
+                          placeholder={f.placeholder}
+                          className="w-full px-3.5 py-2.5 text-base sm:text-xs bg-zinc-950 border border-zinc-800 rounded-xl focus:border-[#3f5ce6] focus:ring-1 focus:ring-[#3f5ce6]/20 focus:outline-none placeholder-zinc-500 text-zinc-100"
+                        />
+                      )}
+                    </div>
+                  )
+                })}
 
                 <button
                   type="submit"
@@ -2005,6 +2295,87 @@ export default function NFCProfileLandingPage() {
         </div>
 
       </div>
+
+      {/* Fullscreen Lightbox Modal */}
+      {isLightboxOpen && lightboxImages.length > 0 && (
+        <div 
+          className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-md flex flex-col items-center justify-center p-3 sm:p-4 animate-fadeIn select-none"
+          onClick={() => setIsLightboxOpen(false)}
+          onTouchStart={handleLightboxTouchStart}
+          onTouchMove={handleLightboxTouchMove}
+          onTouchEnd={handleLightboxTouchEnd}
+        >
+          {/* Close Button */}
+          <button
+            onClick={() => setIsLightboxOpen(false)}
+            className="absolute top-3 right-3 md:top-5 md:right-5 z-50 p-2 sm:p-2.5 rounded-full bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800/80 text-zinc-400 hover:text-white transition-all active:scale-90 cursor-pointer flex items-center justify-center"
+            title="Close (Esc)"
+          >
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
+          {/* Main Content Area */}
+          <div className="relative w-full max-w-5xl h-[70vh] sm:h-[75vh] md:h-[80vh] flex items-center justify-center">
+            {/* Prev Button (Visible on all devices, smaller on mobile) */}
+            {lightboxImages.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxIndex((prev) => (prev - 1 + lightboxImages.length) % lightboxImages.length);
+                }}
+                className="absolute left-2 sm:left-4 z-50 p-2 sm:p-3 rounded-full bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800/80 text-zinc-400 hover:text-white transition-all active:scale-90 cursor-pointer flex items-center justify-center"
+                title="Previous"
+              >
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
+
+            {/* Image Container (using object-contain to display exact width & height fitting screen) */}
+            <div 
+              className="w-full h-full max-w-[95vw] sm:max-w-[90vw] md:max-w-[85vw] max-h-[65vh] sm:max-h-[70vh] md:max-h-[75vh] flex items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={lightboxImages[lightboxIndex]}
+                alt="Product view"
+                className="w-full h-full object-contain rounded-xl sm:rounded-2xl shadow-2xl border border-zinc-800/20 select-none pointer-events-none transition-all duration-300"
+              />
+            </div>
+
+            {/* Next Button (Visible on all devices, smaller on mobile) */}
+            {lightboxImages.length > 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLightboxIndex((prev) => (prev + 1) % lightboxImages.length);
+                }}
+                className="absolute right-2 sm:right-4 z-50 p-2 sm:p-3 rounded-full bg-zinc-900/60 hover:bg-zinc-800 border border-zinc-800/80 text-zinc-400 hover:text-white transition-all active:scale-90 cursor-pointer flex items-center justify-center"
+                title="Next"
+              >
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Bottom Footer Info */}
+          <div className="mt-4 flex flex-col items-center gap-1.5 z-10 text-center px-4">
+            {lightboxImages.length > 1 && (
+              <span className="text-zinc-550 text-[10px] sm:text-[11px] font-black tracking-widest uppercase">
+                {lightboxIndex + 1} of {lightboxImages.length}
+              </span>
+            )}
+            <span className="text-zinc-400 text-[9px] sm:text-[10px] font-medium max-w-[280px] leading-relaxed">
+              {lightboxImages.length > 1 ? "Swipe or use arrow keys to navigate" : "Click anywhere outside to close"}
+            </span>
+          </div>
+        </div>
+      )}
 
     </div>
   )
