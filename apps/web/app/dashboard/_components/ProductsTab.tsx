@@ -785,11 +785,7 @@ export function ProductsTab() {
       ) : (
         <>
           {/* Header */}
-          <div className="flex justify-between items-center">
-            <div className="hidden sm:block">
-              <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Product & Services Catalogue</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Active Profile: <span className="font-semibold text-foreground">{activeProfile?.profile_name}</span> · Showcase and manage {profileProducts.length} active product{profileProducts.length !== 1 ? 's' : ''} or service offering{profileProducts.length !== 1 ? 's' : ''} directly on your profile card.</p>
-            </div>
+          <div className="flex justify-end items-center">
             <div className="flex gap-2">
               <button onClick={handleExportProductsCSV} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-card border border-border hover:bg-muted text-xs font-semibold text-foreground transition-all cursor-pointer">
                 <FileDown size={13} /> Export CSV

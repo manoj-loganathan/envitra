@@ -781,18 +781,7 @@ export function FeedsTab() {
         </div>
       ) : (
         <>
-          <div className="flex justify-between items-center flex-wrap gap-3">
-            <div className="hidden sm:block">
-              <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">
-                {isReorderingFeeds ? 'Arrange Feed Deck' : 'Activity & Updates Feed'}
-              </h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {isReorderingFeeds 
-                  ? 'Drag cards to rearrange the visual order on your profile.' 
-                  : <>Active Profile: <span className="font-semibold text-foreground">{activeProfile?.profile_name}</span> · Publish and organize {profileFeeds.length} update{profileFeeds.length !== 1 ? 's' : ''} (text, links, images, or videos) to engage with visitors.</>
-                }
-              </p>
-            </div>
+          <div className="flex justify-end items-center flex-wrap gap-3">
             {isReorderingFeeds ? (
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -942,7 +931,7 @@ export function FeedsTab() {
                   </div>
                 ) : (
                   /* Feed grid */
-                  <div className="columns-1 sm:columns-2 lg:columns-3 gap-5 space-y-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                     {filteredFeeds.map((feed) => {
                       const formattedTime = new Date(feed.created_at).toLocaleDateString(undefined, { dateStyle: 'medium' });
                       return (
@@ -953,7 +942,7 @@ export function FeedsTab() {
                           onDragOver={(e) => handleDragOver(e, feed.id)}
                           onDragEnd={handleDragEnd}
                           onDrop={(e) => handleDrop(e, feed.id)}
-                          className={`break-inside-avoid bg-card border rounded-2xl overflow-hidden flex flex-col justify-between relative select-none transition-all duration-200 ${
+                          className={`bg-card border rounded-2xl overflow-hidden flex flex-col justify-between relative select-none transition-all duration-200 ${
                             isReorderingFeeds 
                               ? `cursor-grab active:cursor-grabbing border-dashed ${
                                   draggedFeedId === feed.id 

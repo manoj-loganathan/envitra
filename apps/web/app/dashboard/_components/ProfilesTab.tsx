@@ -398,8 +398,9 @@ export function ProfilesTab() {
       })
     }
 
-    if (vc.street || vc.city || vc.state || vc.postal_code) {
-      vcardLines.push(`ADR;TYPE=WORK:;;${vc.street || ''};${vc.city || ''};${vc.state || ''};${vc.postal_code || ''};${vc.country || 'India'}`)
+    const streetCombined = [vc.street || '', vc.street2 || ''].filter(Boolean).join(', ')
+    if (streetCombined || vc.city || vc.state || vc.postal_code) {
+      vcardLines.push(`ADR;TYPE=WORK:;;${streetCombined};${vc.city || ''};${vc.state || ''};${vc.postal_code || ''};${vc.country || 'India'}`)
     }
 
     if (vc.urls && vc.urls.length > 0) {
@@ -525,13 +526,7 @@ export function ProfilesTab() {
 
   return (
     <div className="space-y-6 animate-fadeIn text-left">
-      <div className="flex justify-between items-center">
-        <div className="hidden sm:block">
-          <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">NFC Profile Manager</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Card: <span className="font-semibold text-foreground">{activeCard?.slug}</span> · Create and configure multiple digital profiles. The designated active profile is loaded automatically when your NFC card is tapped or scanned.
-          </p>
-        </div>
+      <div className="flex justify-end items-center">
         <button
           onClick={handleOpenCreateProfile}
           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#3f5ce6] hover:bg-[#3050d8] text-white text-xs font-semibold cursor-pointer shadow-md transition-all active:scale-98"
@@ -958,42 +953,38 @@ export function ProfilesTab() {
 
               <div className="space-y-1.5 pt-1">
                 <label className="text-[10px] uppercase font-bold text-muted-foreground dark:text-zinc-400 tracking-wider block">Profile Status</label>
-                <div className="flex rounded-xl p-1 bg-muted/40 dark:bg-zinc-950/40 border border-border dark:border-zinc-800/80 w-full">
+                <label className="flex items-center justify-between p-3 rounded-xl border border-border dark:border-zinc-800/80 bg-muted/20 dark:bg-zinc-950/20 cursor-pointer select-none transition-all hover:bg-muted/40 dark:hover:bg-zinc-950/30">
+                  <div className="space-y-0.5">
+                    <span className={`text-xs font-bold transition-colors ${profileForm.status === 'active' ? 'text-emerald-600 dark:text-emerald-500' : 'text-muted-foreground'}`}>
+                      {profileForm.status === 'active' ? 'Active' : 'Inactive'}
+                    </span>
+                    <p className="text-[10px] text-muted-foreground dark:text-zinc-500 font-medium leading-relaxed">
+                      {profileForm.status === 'active' ? 'Profile is visible and accessible.' : 'Profile is hidden from public access.'}
+                    </p>
+                  </div>
                   <button
                     type="button"
+                    role="switch"
+                    aria-checked={profileForm.status === 'active'}
                     onClick={() => {
+                      const newActive = profileForm.status !== 'active'
                       setProfileForm(prev => ({
                         ...prev,
-                        status: 'active',
-                        isActive: true
-                      }));
+                        status: newActive ? 'active' : 'inactive',
+                        isActive: newActive ? prev.isActive : false
+                      }))
                     }}
-                    className={`flex-grow py-2 text-center text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                      profileForm.status === 'active'
-                        ? 'bg-purple-600 text-white shadow-sm border border-purple-600'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 dark:hover:bg-zinc-800/20'
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      profileForm.status === 'active' ? 'bg-emerald-500' : 'bg-zinc-300 dark:bg-zinc-700'
                     }`}
                   >
-                    Active
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition-transform duration-200 ease-in-out ${
+                        profileForm.status === 'active' ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setProfileForm(prev => ({
-                        ...prev,
-                        status: 'inactive',
-                        isActive: false
-                      }));
-                    }}
-                    className={`flex-grow py-2 text-center text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                      profileForm.status === 'inactive'
-                        ? 'bg-purple-600 text-white shadow-sm border border-purple-600'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 dark:hover:bg-zinc-800/20'
-                    }`}
-                  >
-                    Inactive
-                  </button>
-                </div>
+                </label>
               </div>
 
               <div className="pt-2">

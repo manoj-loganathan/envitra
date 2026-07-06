@@ -354,23 +354,7 @@ export function AnalyticsTab() {
 
   return (
     <div className="space-y-6 animate-fadeIn text-left">
-      <div className="flex justify-between items-center flex-wrap gap-3">
-        <div className="hidden sm:block">
-          <h3 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
-            Analytics 
-            {analyticsData && !analyticsData.hasNoData && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold border border-emerald-500/20 bg-emerald-500/10 text-emerald-500 uppercase tracking-wider">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                Live Analytics
-              </span>
-            )}
-          </h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {isAllCards
-              ? 'Aggregated activity data across all smart cards'
-              : `Card: ${activeCard?.slug}${activeProfile ? ` · Profile: ${activeProfile.profile_name}` : ''}`}
-          </p>
-        </div>
+      <div className="flex justify-end items-center flex-wrap gap-3">
         {/* Date range */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <div className="flex gap-1">

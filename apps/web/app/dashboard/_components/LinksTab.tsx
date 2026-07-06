@@ -1054,13 +1054,7 @@ export function LinksTab() {
   return (
     <div className="space-y-6 animate-fadeIn text-left w-full">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="hidden sm:block">
-          <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Manage Links</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Add, edit, remove, or reorder the links displayed on your public digital card profile page. You can add up to <span className="font-bold text-foreground">12 social links</span> and <span className="font-bold text-foreground">5 payment links</span>.
-          </p>
-        </div>
+      <div className="flex justify-end items-center">
         <button
           onClick={openAddLink}
           className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#3f5ce6] hover:bg-[#3050d8] text-white text-xs font-semibold shadow-md transition-all cursor-pointer shrink-0 w-full sm:w-auto justify-center"

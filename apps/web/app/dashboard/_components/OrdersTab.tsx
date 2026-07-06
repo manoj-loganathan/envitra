@@ -245,13 +245,7 @@ export function OrdersTab() {
       {selectedOrderId === null ? (
         // General List of Orders View
         <>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-border/10 pb-4 mb-2 gap-4">
-            <div>
-              <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Your Orders</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Select an order to view its status, download invoices, and track your smart cards.
-              </p>
-            </div>
+          <div className="flex justify-end items-center border-b border-border/10 pb-4 mb-2">
             <Link
               href="/shop"
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#3f5ce6]/25 bg-[#3f5ce6]/5 text-[#3f5ce6] hover:bg-[#3f5ce6]/15 text-xs font-black transition-all active:scale-95 select-none shrink-0 cursor-pointer"

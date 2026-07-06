@@ -184,9 +184,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   // ── Database Fetching Callbacks ──────────────────────────────────
-  const fetchProfileLinks = async (profileId: string) => {
+  const fetchProfileLinks = async (profileId: string, silent = false) => {
     if (!profileId) return
-    setProfileLinksLoading(true)
+    if (!silent) setProfileLinksLoading(true)
     try {
       const { data, error } = await supabase
         .from('profile_links')
@@ -210,7 +210,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       if (error) {
         console.error('fetchProfileLinks error:', error)
-        setProfileLinksLoading(false)
+        if (!silent) setProfileLinksLoading(false)
         return
       }
 
@@ -236,14 +236,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } catch (err) {
       console.error('Failed to fetch profile links:', err)
     } finally {
-      setProfileLinksLoading(false)
+      if (!silent) setProfileLinksLoading(false)
     }
   }
 
 
-  const fetchProfileProducts = async (profileId: string) => {
+  const fetchProfileProducts = async (profileId: string, silent = false) => {
     if (!profileId) return
-    setProfileProductsLoading(true)
+    if (!silent) setProfileProductsLoading(true)
     try {
       const { data, error } = await supabase
         .from('profile_products')
@@ -256,13 +256,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } catch (err) {
       console.error('Failed to fetch profile products:', err)
     } finally {
-      setProfileProductsLoading(false)
+      if (!silent) setProfileProductsLoading(false)
     }
   }
 
-  const fetchProfileFeeds = async (profileId: string) => {
+  const fetchProfileFeeds = async (profileId: string, silent = false) => {
     if (!profileId) return
-    setProfileFeedsLoading(true)
+    if (!silent) setProfileFeedsLoading(true)
     try {
       const { data, error } = await supabase
         .from('profile_feeds')
@@ -275,13 +275,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } catch (err) {
       console.error('Failed to fetch profile feeds:', err)
     } finally {
-      setProfileFeedsLoading(false)
+      if (!silent) setProfileFeedsLoading(false)
     }
   }
 
-  const fetchLeadForms = async (profileId: string) => {
+  const fetchLeadForms = async (profileId: string, silent = false) => {
     if (!profileId) return
-    setLeadFormsLoading(true)
+    if (!silent) setLeadFormsLoading(true)
     try {
       const { data, error } = await supabase
         .from('lead_forms')
@@ -294,13 +294,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } catch (err) {
       console.error('Failed to fetch lead forms:', err)
     } finally {
-      setLeadFormsLoading(false)
+      if (!silent) setLeadFormsLoading(false)
     }
   }
 
-  const fetchLeads = async (profileId: string) => {
+  const fetchLeads = async (profileId: string, silent = false) => {
     if (!profileId) return
-    setLeadsLoading(true)
+    if (!silent) setLeadsLoading(true)
     try {
       const { data, error } = await supabase
         .from('lead_submissions')
@@ -313,13 +313,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } catch (err) {
       console.error('Failed to fetch leads:', err)
     } finally {
-      setLeadsLoading(false)
+      if (!silent) setLeadsLoading(false)
     }
   }
 
-  const fetchAllAccountProducts = async () => {
+  const fetchAllAccountProducts = async (silent = false) => {
     if (!user?.id) return
-    setAllAccountProductsLoading(true)
+    if (!silent) setAllAccountProductsLoading(true)
     try {
       const { data, error } = await supabase
         .from('profile_products')
@@ -332,13 +332,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } catch (err) {
       console.error('Failed to fetch all account products:', err)
     } finally {
-      setAllAccountProductsLoading(false)
+      if (!silent) setAllAccountProductsLoading(false)
     }
   }
 
-  const fetchAllAccountFeeds = async () => {
+  const fetchAllAccountFeeds = async (silent = false) => {
     if (!user?.id) return
-    setAllAccountFeedsLoading(true)
+    if (!silent) setAllAccountFeedsLoading(true)
     try {
       const { data, error } = await supabase
         .from('profile_feeds')
@@ -351,13 +351,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } catch (err) {
       console.error('Failed to fetch all account feeds:', err)
     } finally {
-      setAllAccountFeedsLoading(false)
+      if (!silent) setAllAccountFeedsLoading(false)
     }
   }
 
-  const fetchAllAccountLinks = async () => {
+  const fetchAllAccountLinks = async (silent = false) => {
     if (!user?.id) return
-    setAllAccountLinksLoading(true)
+    if (!silent) setAllAccountLinksLoading(true)
     try {
       const { data, error } = await supabase
         .from('profile_links')
@@ -396,13 +396,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } catch (err) {
       console.error('Failed to fetch all account links:', err)
     } finally {
-      setAllAccountLinksLoading(false)
+      if (!silent) setAllAccountLinksLoading(false)
     }
   }
 
-  const fetchAllAccountLeadForms = async () => {
+  const fetchAllAccountLeadForms = async (silent = false) => {
     if (!user?.id) return
-    setAllAccountLeadFormsLoading(true)
+    if (!silent) setAllAccountLeadFormsLoading(true)
     try {
       const { data, error } = await supabase
         .from('lead_forms')
@@ -415,7 +415,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } catch (err) {
       console.error('Failed to fetch all account lead forms:', err)
     } finally {
-      setAllAccountLeadFormsLoading(false)
+      if (!silent) setAllAccountLeadFormsLoading(false)
     }
   }
 
@@ -843,8 +843,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { event: '*', schema: 'public', table: 'profile_links' },
         (payload) => {
           if (activeProfile?.id) {
-            fetchProfileLinks(activeProfile.id)
-            fetchAllAccountLinks()
+            fetchProfileLinks(activeProfile.id, true)
+            fetchAllAccountLinks(true)
           }
         }
       )
@@ -853,8 +853,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { event: '*', schema: 'public', table: 'profile_products' },
         (payload) => {
           if (activeProfile?.id) {
-            fetchProfileProducts(activeProfile.id)
-            fetchAllAccountProducts()
+            fetchProfileProducts(activeProfile.id, true)
+            fetchAllAccountProducts(true)
           }
         }
       )
@@ -863,8 +863,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { event: '*', schema: 'public', table: 'profile_feeds' },
         (payload) => {
           if (activeProfile?.id) {
-            fetchProfileFeeds(activeProfile.id)
-            fetchAllAccountFeeds()
+            fetchProfileFeeds(activeProfile.id, true)
+            fetchAllAccountFeeds(true)
           }
         }
       )
@@ -872,7 +872,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         'postgres_changes',
         { event: '*', schema: 'public', table: 'lead_submissions' },
         (payload) => {
-          if (activeProfile?.id) fetchLeads(activeProfile.id)
+          if (activeProfile?.id) fetchLeads(activeProfile.id, true)
         }
       )
       .on(
@@ -880,8 +880,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { event: '*', schema: 'public', table: 'lead_forms' },
         (payload) => {
           if (activeProfile?.id) {
-            fetchLeadForms(activeProfile.id)
-            fetchAllAccountLeadForms()
+            fetchLeadForms(activeProfile.id, true)
+            fetchAllAccountLeadForms(true)
           }
         }
       )

@@ -38,6 +38,7 @@ export function VCardTab() {
     phones: [] as Array<{ label: string; number: string; is_primary: boolean }>,
     emails: [] as Array<{ label: string; email: string; is_primary: boolean }>,
     street: '',
+    street2: '',
     city: '',
     state: '',
     postalCode: '',
@@ -83,6 +84,7 @@ export function VCardTab() {
             phones: [],
             emails: [],
             street: '',
+            street2: '',
             city: '',
             state: '',
             postalCode: '',
@@ -112,6 +114,7 @@ export function VCardTab() {
             phones: vcardData.phones || [],
             emails: vcardData.emails || [],
             street: vcardData.street || '',
+            street2: vcardData.street2 || '',
             city: vcardData.city || '',
             state: vcardData.state || '',
             postalCode: vcardData.postal_code || '',
@@ -132,6 +135,7 @@ export function VCardTab() {
             phones: [],
             emails: [],
             street: '',
+            street2: '',
             city: '',
             state: '',
             postalCode: '',
@@ -303,6 +307,7 @@ export function VCardTab() {
             phones: vcardData.phones,
             emails: vcardData.emails,
             street: vcardData.street,
+            street2: vcardData.street2,
             city: vcardData.city,
             state: vcardData.state,
             postal_code: vcardData.postalCode,
@@ -332,6 +337,7 @@ export function VCardTab() {
           phones: vcardData.phones,
           emails: vcardData.emails,
           street: vcardData.street,
+          street2: vcardData.street2,
           city: vcardData.city,
           state: vcardData.state,
           postal_code: vcardData.postalCode,
@@ -347,9 +353,12 @@ export function VCardTab() {
       setMessageType('success')
       setMessage('vCard details updated for all profiles.')
     } catch (err: any) {
-      console.error(err)
+      // Supabase PostgrestError objects have non-enumerable properties and log
+      // as {} with console.error(err). Log details explicitly.
+      const errMsg = err?.message || err?.details || err?.hint || 'Failed to save vCard details.'
+      console.error('saveVCard error:', errMsg, err)
       setMessageType('error')
-      setMessage(err.message || 'Failed to save vCard details.')
+      setMessage(errMsg)
     } finally {
       setSavingVCard(false)
     }
@@ -389,13 +398,7 @@ export function VCardTab() {
 
   return (
     <div className="space-y-6 animate-fadeIn text-left max-w-6xl">
-      {/* Header */}
-      <div className="hidden sm:block">
-        <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">vCard Contact Details</h3>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Configure contact info shared when this card is tapped.
-        </p>
-      </div>
+
 
       {/* Info banner */}
       <div className="bg-[#3f5ce6]/10 border border-[#3f5ce6]/20 p-4 rounded-xl text-xs flex items-start gap-2.5">
@@ -898,13 +901,23 @@ export function VCardTab() {
                 <h4 className="flex items-center gap-1.5 text-xs font-bold text-[#3f5ce6] uppercase tracking-wider select-none"><MapPin size={13} strokeWidth={2} />Postal Address</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold text-muted-foreground">Street Address</label>
+                    <label className="text-xs font-semibold text-muted-foreground">Street Address 1</label>
                     <input
                       type="text"
                       value={vcardForm.street}
                       onChange={(e) => setVcardForm(prev => ({ ...prev, street: e.target.value }))}
                       className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
-                      placeholder="82, OMR Road, Karapakkam"
+                      placeholder="82, OMR Road"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-muted-foreground">Street Address 2 <span className="text-muted-foreground/60 font-normal">(optional)</span></label>
+                    <input
+                      type="text"
+                      value={vcardForm.street2}
+                      onChange={(e) => setVcardForm(prev => ({ ...prev, street2: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm text-foreground focus:border-[#3f5ce6] focus:outline-none transition-colors"
+                      placeholder="Karapakkam, Near Metro"
                     />
                   </div>
                   <div className="space-y-1">

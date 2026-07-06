@@ -31,11 +31,11 @@ export interface DashboardContextType {
   setMessageType: Dispatch<SetStateAction<'success' | 'error'>>
 
   // Data fetching functions
-  fetchProfileProducts: (pId: string) => Promise<void>
-  fetchProfileFeeds: (pId: string) => Promise<void>
-  fetchProfileLinks: (pId: string) => Promise<void>
-  fetchLeadForms: (pId: string) => Promise<void>
-  fetchLeads: (pId: string) => Promise<void>
+  fetchProfileProducts: (pId: string, silent?: boolean) => Promise<void>
+  fetchProfileFeeds: (pId: string, silent?: boolean) => Promise<void>
+  fetchProfileLinks: (pId: string, silent?: boolean) => Promise<void>
+  fetchLeadForms: (pId: string, silent?: boolean) => Promise<void>
+  fetchLeads: (pId: string, silent?: boolean) => Promise<void>
 
   // Products state shared between tab and details drawer/dialogs
   profileProducts: any[]

@@ -946,11 +946,7 @@ export function LeadsTab() {
       ) : (
         <>
           {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-            <div className="hidden sm:block">
-              <h3 className="text-sm font-bold text-foreground uppercase tracking-wider">Leads & Custom Capture Forms</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Active Profile: <span className="font-semibold text-foreground">{activeProfile?.profile_name}</span> · Manage submissions from {leadForms.length} custom lead capture form{leadForms.length !== 1 ? 's' : ''} containing {leads.length} total lead{leads.length !== 1 ? 's' : ''}.</p>
-            </div>
+          <div className="flex justify-end items-center mb-2">
             <div className="flex gap-2 shrink-0">
               {leadsSubTab === 'crm' && (
                 <>
@@ -2041,35 +2037,36 @@ export function LeadsTab() {
                           </div>
                           {/* Right: actions */}
                           <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
-                            {form.is_active ? (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      onClick={() => deactivateForm(form.id)}
-                                      className="px-3 py-1.5 rounded-lg bg-zinc-500/10 border border-zinc-500/25 text-zinc-650 dark:text-zinc-400 text-[11px] font-bold hover:bg-zinc-500/20 transition-all cursor-pointer"
-                                    >
-                                      Deactivate
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom">Deactivate this form</TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            ) : (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      onClick={() => activateForm(form.id)}
-                                      className="px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold hover:bg-emerald-500/20 transition-all cursor-pointer"
-                                    >
-                                      Activate
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom">Activate this form</TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            )}
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={form.is_active}
+                                    onClick={() => {
+                                      if (form.is_active) {
+                                        deactivateForm(form.id)
+                                      } else {
+                                        activateForm(form.id)
+                                      }
+                                    }}
+                                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                      form.is_active ? 'bg-emerald-500' : 'bg-zinc-300 dark:bg-zinc-700'
+                                    }`}
+                                  >
+                                    <span
+                                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition-transform duration-200 ease-in-out ${
+                                        form.is_active ? 'translate-x-5' : 'translate-x-0'
+                                      }`}
+                                    />
+                                  </button>
+                                </TooltipTrigger>
+                                <TooltipContent side="bottom">
+                                  {form.is_active ? 'Deactivate this form' : 'Activate this form'}
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>

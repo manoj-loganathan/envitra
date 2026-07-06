@@ -849,13 +849,13 @@ export default function NFCProfileLandingPage() {
             setProducts([])
           }
 
-          // Fetch feeds
+          // Fetch feeds — ordered by sort_order to match the reorder set in dashboard
           const { data: feedsData } = await supabase
             .from('profile_feeds')
             .select('*')
             .eq('profile_id', targetProfile.id)
             .eq('is_published', true)
-            .order('created_at', { ascending: false })
+            .order('sort_order', { ascending: true })
 
           if (active && feedsData) setFeeds(feedsData)
           else if (active) setFeeds([])
@@ -919,44 +919,73 @@ export default function NFCProfileLandingPage() {
     if (!vcard) return
     
     // Compile VCF string
-    let vcf = 'BEGIN:VCARD\nVERSION:3.0\n'
-    vcf += `FN:${profile?.display_name || (vcard.first_name + ' ' + vcard.last_name) || ''}\n`
-    vcf += `N:${vcard.last_name || ''};${vcard.first_name || ''};;;\n`
+    const lines: string[] = []
+    lines.push('BEGIN:VCARD')
+    lines.push('VERSION:3.0')
+    const fullName = `${vcard.first_name || ''} ${vcard.last_name || ''}`.trim() || profile?.display_name || ''
+    lines.push(`FN:${fullName}`)
+    lines.push(`N:${vcard.last_name || ''};${vcard.first_name || ''};;;`)
     
-    if (vcard.organization) vcf += `ORG:${vcard.organization}\n`
-    if (vcard.job_title) vcf += `TITLE:${vcard.job_title}\n`
+    if (vcard.organization) lines.push(`ORG:${vcard.organization}`)
+    if (vcard.department) lines.push(`ORG;TYPE=DEPT:${vcard.department}`)
+    if (vcard.job_title) lines.push(`TITLE:${vcard.job_title}`)
     
+    // Phones
     const phones = vcard.phones || []
     phones.forEach((p: any) => {
-      vcf += `TEL;TYPE=${p.label.toUpperCase()}:${p.number}\n`
+      if (p.number) lines.push(`TEL;TYPE=${(p.label || 'CELL').toUpperCase()}:${p.number}`)
     })
     
+    // Emails
     const emails = vcard.emails || []
     emails.forEach((e: any) => {
-      vcf += `EMAIL;TYPE=${e.label.toUpperCase()}:${e.email}\n`
+      if (e.email) lines.push(`EMAIL;TYPE=${(e.label || 'WORK').toUpperCase()}:${e.email}`)
     })
     
-    if (vcard.street || vcard.city || vcard.state || vcard.postal_code || vcard.country) {
-      vcf += `ADR;TYPE=WORK:;;${vcard.street || ''};${vcard.city || ''};${vcard.state || ''};${vcard.postal_code || ''};${vcard.country || ''}\n`
+    // Postal address — supports street (line 1) and street2 (line 2)
+    const street1 = vcard.street || ''
+    const street2 = vcard.street2 || ''
+    const streetCombined = [street1, street2].filter(Boolean).join(', ')
+    if (streetCombined || vcard.city || vcard.state || vcard.postal_code || vcard.country) {
+      lines.push(`ADR;TYPE=WORK:;;${streetCombined};${vcard.city || ''};${vcard.state || ''};${vcard.postal_code || ''};${vcard.country || 'India'}`)
     }
     
-    if (vcard.website) vcf += `URL:${vcard.website}\n`
+    // Main website
+    if (vcard.website) lines.push(`URL;TYPE=WORK:${vcard.website}`)
     
-    const custom = vcard.custom_fields || []
-    custom.forEach((c: any) => {
-      vcf += `X-SOCIALPROFILE;TYPE=${c.key}:${c.value}\n`
+    // Additional website URLs
+    const urls = vcard.urls || []
+    urls.forEach((u: any) => {
+      if (u.url) lines.push(`URL;TYPE=${(u.label || 'CUSTOM').toUpperCase()}:${u.url}`)
     })
     
-    vcf += 'END:VCARD'
+    // Social profiles
+    const socials = vcard.socials || []
+    socials.forEach((s: any) => {
+      if (s.url) lines.push(`X-SOCIALPROFILE;TYPE=${(s.platform || 'OTHER').toUpperCase()}:${s.url}`)
+    })
+    
+    // Notes
+    if (vcard.notes) lines.push(`NOTE:${vcard.notes.replace(/\n/g, '\\n')}`)
+    
+    // Custom fields
+    const custom = vcard.custom_fields || []
+    custom.forEach((c: any) => {
+      if (c.key && c.value) lines.push(`X-${c.key.replace(/\s+/g, '-').toUpperCase()}:${c.value}`)
+    })
+    
+    lines.push('END:VCARD')
+    const vcf = lines.join('\n')
     
     const blob = new Blob([vcf], { type: 'text/vcard;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.setAttribute('download', `${vcard.first_name || 'contact'}.vcf`)
+    link.setAttribute('download', `${fullName.replace(/\s+/g, '_') || 'contact'}.vcf`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+    URL.revokeObjectURL(url)
   }
 
 
