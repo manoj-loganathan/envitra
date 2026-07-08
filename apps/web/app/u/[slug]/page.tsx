@@ -915,6 +915,14 @@ export default function NFCProfileLandingPage() {
   }, [slug])
 
   // vCard generator & exporter
+  const escapeVCardValue = (val: string) => {
+    return (val || '')
+      .replace(/\\/g, '\\\\')
+      .replace(/;/g, '\\;')
+      .replace(/,/g, '\\,')
+      .replace(/\n/g, '\\n')
+  }
+
   const handleSaveContact = () => {
     if (!vcard) return
     
@@ -923,12 +931,12 @@ export default function NFCProfileLandingPage() {
     lines.push('BEGIN:VCARD')
     lines.push('VERSION:3.0')
     const fullName = `${vcard.first_name || ''} ${vcard.last_name || ''}`.trim() || profile?.display_name || ''
-    lines.push(`FN:${fullName}`)
-    lines.push(`N:${vcard.last_name || ''};${vcard.first_name || ''};;;`)
+    lines.push(`FN:${escapeVCardValue(fullName)}`)
+    lines.push(`N:${escapeVCardValue(vcard.last_name || '')};${escapeVCardValue(vcard.first_name || '')};;;`)
     
-    if (vcard.organization) lines.push(`ORG:${vcard.organization}`)
-    if (vcard.department) lines.push(`ORG;TYPE=DEPT:${vcard.department}`)
-    if (vcard.job_title) lines.push(`TITLE:${vcard.job_title}`)
+    if (vcard.organization) lines.push(`ORG:${escapeVCardValue(vcard.organization)}`)
+    if (vcard.department) lines.push(`ORG;TYPE=DEPT:${escapeVCardValue(vcard.department)}`)
+    if (vcard.job_title) lines.push(`TITLE:${escapeVCardValue(vcard.job_title)}`)
     
     // Phones
     const phones = vcard.phones || []
@@ -943,11 +951,17 @@ export default function NFCProfileLandingPage() {
     })
     
     // Postal address — supports street (line 1) and street2 (line 2)
-    const street1 = vcard.street || ''
-    const street2 = vcard.street2 || ''
-    const streetCombined = [street1, street2].filter(Boolean).join(', ')
-    if (streetCombined || vcard.city || vcard.state || vcard.postal_code || vcard.country) {
-      lines.push(`ADR;TYPE=WORK:;;${streetCombined};${vcard.city || ''};${vcard.state || ''};${vcard.postal_code || ''};${vcard.country || 'India'}`)
+    const street1 = escapeVCardValue(vcard.street)
+    const street2 = escapeVCardValue(vcard.street2)
+    // Join street1 and street2 with escaped newline so it renders as two lines under the street field in iOS Contacts
+    const streetCombined = [street1, street2].filter(Boolean).join('\\n')
+    const city = escapeVCardValue(vcard.city)
+    const state = escapeVCardValue(vcard.state)
+    const postalCode = escapeVCardValue(vcard.postal_code)
+    const country = escapeVCardValue(vcard.country || 'India')
+    
+    if (streetCombined || city || state || postalCode || country) {
+      lines.push(`ADR;TYPE=WORK:;;${streetCombined};${city};${state};${postalCode};${country}`)
     }
     
     // Main website
@@ -962,7 +976,22 @@ export default function NFCProfileLandingPage() {
     // Social profiles
     const socials = vcard.socials || []
     socials.forEach((s: any) => {
-      if (s.url) lines.push(`X-SOCIALPROFILE;TYPE=${(s.platform || 'OTHER').toUpperCase()}:${s.url}`)
+      if (!s.url) return
+      
+      const platform = (s.platform || '').toLowerCase().trim()
+      let type = platform
+      if (platform === 'x' || platform === 'twitter') {
+        type = 'twitter'
+      }
+      
+      const rawUsername = s.username || ''
+      const username = rawUsername.startsWith('@') ? rawUsername.substring(1) : rawUsername
+      
+      if (username) {
+        lines.push(`X-SOCIALPROFILE;type=${type};x-user=${username}:${s.url}`)
+      } else {
+        lines.push(`X-SOCIALPROFILE;type=${type}:${s.url}`)
+      }
     })
     
     // Notes
